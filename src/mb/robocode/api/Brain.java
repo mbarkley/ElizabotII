@@ -1,4 +1,4 @@
-package mb.robot.api;
+package mb.robocode.api;
 
 import java.util.Collection;
 import java.util.List;

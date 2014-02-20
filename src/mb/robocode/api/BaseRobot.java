@@ -1,16 +1,17 @@
-package mb.robot.api;
+package mb.robocode.api;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
-import mb.robot.impl.EventMapImpl;
+import mb.robocode.impl.EventMapImpl;
 import robocode.AdvancedRobot;
 import robocode.BattleEndedEvent;
 import robocode.BulletHitBulletEvent;
 import robocode.BulletHitEvent;
 import robocode.BulletMissedEvent;
+import robocode.Condition;
 import robocode.DeathEvent;
 import robocode.Event;
 import robocode.HitByBulletEvent;
@@ -42,6 +43,8 @@ public abstract class BaseRobot extends AdvancedRobot {
     privateInit();
 
     while (true) {
+      final double time = getTime();
+
       if (context.size() == contextSize)
         context.remove(contextSize - 1);
       context.add(0, curEvents);
@@ -49,8 +52,14 @@ public abstract class BaseRobot extends AdvancedRobot {
 
       final Collection<Action> actions = brain.getActions(context);
       for (final Action action : actions) {
-        action.performAction(this);
+        action.setAction(this);
       }
+      waitFor(new Condition() {
+        @Override
+        public boolean test() {
+          return time != getTime();
+        }
+      });
     }
   }
 
@@ -65,8 +74,9 @@ public abstract class BaseRobot extends AdvancedRobot {
     setAdjustRadarForRobotTurn(true);
   }
 
+  @SuppressWarnings("unchecked")
   private <E extends Event> void onEvent(E event) {
-    curEvents.get(event.getClass()).add(event);
+    curEvents.safeGet((Class<E>) event.getClass()).add(event);
   }
 
   @Override

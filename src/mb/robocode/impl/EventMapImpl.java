@@ -1,4 +1,4 @@
-package mb.robot.impl;
+package mb.robocode.impl;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import robocode.Event;
-import mb.robot.api.EventMap;
+import mb.robocode.api.EventMap;
 
 public class EventMapImpl implements EventMap {
 
