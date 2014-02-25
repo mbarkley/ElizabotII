@@ -1,8 +1,7 @@
 package mb.robocode.bot;
 
-import static mb.robocode.util.Logger.debug;
-
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -17,46 +16,35 @@ import mb.robocode.api.EventMap;
 import mb.robocode.bot.action.Ahead;
 import mb.robocode.bot.action.RadarTurn;
 import mb.robocode.bot.action.Turn;
+import mb.robocode.bot.strategy.ComplexStrategy;
+import mb.robocode.bot.strategy.SimpleStrategy;
+import mb.robocode.bot.strategy.Strategy;
+import robocode.AdvancedRobot;
+import robocode.Event;
+import robocode.Robot;
+import robocode.Rules;
 import robocode.ScannedRobotEvent;
 import robocode.StatusEvent;
+import robocode.util.Utils;
 
 public class ElizaBrain implements Brain {
 
   private static final double RANGE_INCREMENT = 100.0;
+  private double WIDTH;
+  private double HEIGHT;
+
+  @Override
+  public void init(final AdvancedRobot robot) {
+    WIDTH = robot.getWidth();
+    HEIGHT = robot.getHeight();
+  }
 
   @Override
   public Collection<Action> getActions(final List<EventMap> events) {
     final Collection<Action> retVal = new ArrayList<Action>();
-    retVal.add(new RadarTurn(Double.POSITIVE_INFINITY));
 
-    final Map<String, ScannedRobotEvent> latestScans = getLatestScanEvents(events);
-    final List<ScannedRobotEvent> scanList = new ArrayList<ScannedRobotEvent>(
-        latestScans.values());
-
-    Collections.sort(scanList, new Comparator<ScannedRobotEvent>() {
-      @Override
-      public int compare(ScannedRobotEvent o1, ScannedRobotEvent o2) {
-        return (int) Math.signum(o1.getDistance() - o2.getDistance());
-      }
-    });
-
-    if (!scanList.isEmpty()) {
-      final ScannedRobotEvent closest = scanList.get(0);
-
-      switch (getStrategy(events)) {
-        case HOLD:
-          debug("Strategy: " + Strategy.HOLD.toString());
-          break;
-        case ATTACK:
-          debug("Strategy: " + Strategy.ATTACK.toString());
-          retVal.addAll(moveToAction(closest,
-              events.get(0).safeGet(StatusEvent.class).iterator().next()));
-          break;
-        case EVADE:
-          debug("Strategy: " + Strategy.EVADE.toString());
-          break;
-      }
-    }
+    final Strategy strategy = getStrategy(events);
+    retVal.addAll(strategy.getActions());
 
     return retVal;
   }
@@ -71,16 +59,99 @@ public class ElizaBrain implements Brain {
   }
 
   private Strategy getStrategy(final List<EventMap> events) {
-    final Map<String, ScannedRobotEvent> latestScans = getLatestScanEvents(events);
-    final double score = getPositionScore(latestScans);
+    final Collection<Strategy> subStrategies = Arrays.asList(new Strategy[] {
+        getMovementStrategy(events),
+        getGunStrategy(events),
+        getRadarStrategy(events)
+    });
 
-    if (score < 1.0) {
-      return Strategy.ATTACK;
-    } else if (score < 2.0) {
-      return Strategy.HOLD;
-    } else {
-      return Strategy.EVADE;
+    return new ComplexStrategy(subStrategies);
+  }
+
+  private Strategy getRadarStrategy(final List<EventMap> events) {
+    return new SimpleStrategy(Arrays.asList(new Action[] {
+        new RadarTurn(Double.POSITIVE_INFINITY)
+    }));
+  }
+
+  private Strategy getGunStrategy(final List<EventMap> events) {
+    final List<Action> actions = new ArrayList<Action>();
+    if (events.size() > 0) {
+      final StatusEvent status = events.get(0).safeGet(StatusEvent.class)
+          .iterator().next();
+      final List<ScannedRobotEvent> scans = getMostRecentScans(events);
+
+      Collections.sort(scans, new Comparator<ScannedRobotEvent>() {
+        private double getAbsBearingFromGun(final ScannedRobotEvent scan) {
+          return Math.abs(Utils.normalRelativeAngle(
+              scan.getHeadingRadians()
+                  - status.getStatus().getGunHeadingRadians()));
+        }
+
+        @Override
+        public int compare(ScannedRobotEvent o1, ScannedRobotEvent o2) {
+          return (int) (getAbsBearingFromGun(o2) - getAbsBearingFromGun(o1));
+        }
+      });
+
+      if (scans.size() > 0) {
+        final ScannedRobotEvent target = scans.get(0);
+        final double HIT_RATIO = 10.0;
+        final double TARGET_WINDOW = (HIT_RATIO * Math.min(HEIGHT, WIDTH)) / 2.0;
+        final double distance = target.getDistance();
+        final double bearing = Utils.normalRelativeAngle(status.getStatus()
+            .getHeadingRadians() + target.getBearingRadians()
+            - status.getStatus().getGunHeadingRadians());
+        final double absBearing = Math.abs(bearing);
+
+        if (absBearing < Math.PI / 2.0
+            && Math.sin(absBearing) < TARGET_WINDOW
+                / (TARGET_WINDOW * TARGET_WINDOW + distance * distance)) {
+          actions.add(new Action() {
+            @Override
+            public void setAction(final AdvancedRobot robot) {
+              if (robot.getGunHeat() == 0.0)
+                robot.setFire(2.0);
+              else
+                robot.setTurnGunRightRadians(bearing);
+            }
+          });
+        }
+        else {
+          actions.add(new Action() {
+            @Override
+            public void setAction(final AdvancedRobot robot) {
+              robot.setTurnGunRightRadians(bearing);
+            }
+          });
+        }
+      }
     }
+
+    return new SimpleStrategy(actions);
+  }
+
+  private List<ScannedRobotEvent> getMostRecentScans(final List<EventMap> events) {
+    final Map<String, ScannedRobotEvent> mostRecent = new HashMap<String, ScannedRobotEvent>();
+    for (final EventMap map : events) {
+      for (final ScannedRobotEvent scanEvent : map
+          .safeGet(ScannedRobotEvent.class)) {
+        if (!mostRecent.containsKey(scanEvent.getName())) {
+          mostRecent.put(scanEvent.getName(), scanEvent);
+        }
+      }
+    }
+
+    return new ArrayList<ScannedRobotEvent>(mostRecent.values());
+  }
+
+  private Strategy getMovementStrategy(final List<EventMap> events) {
+    final Map<String, ScannedRobotEvent> latestScanEvents = getLatestScanEvents(events);
+    final double positionScore = getPositionScore(latestScanEvents);
+
+    return new SimpleStrategy(Arrays.asList(new Action[] {
+
+        }));
   }
 
   private double getPositionScore(Map<String, ScannedRobotEvent> latestScans) {

@@ -41,6 +41,7 @@ public abstract class BaseRobot extends AdvancedRobot {
   public void run() {
     init();
     privateInit();
+    brain.init(this);
 
     while (true) {
       final double time = getTime();
