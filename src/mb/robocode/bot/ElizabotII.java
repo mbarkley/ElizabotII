@@ -28,6 +28,7 @@ public class ElizabotII extends AdvancedRobot {
 
   private Target curTarget;
   private static final int DEPTH = 20;
+  private static final double AIM_DELTA = 0.0000000001;
 
   private void init() {
     setColors(Color.MAGENTA, Color.MAGENTA, Color.YELLOW, Color.BLUE, null);
@@ -44,8 +45,8 @@ public class ElizabotII extends AdvancedRobot {
       setTurnRadarRightRadians(Double.POSITIVE_INFINITY);
 
       if (curTarget != null) {
-        aimAtTarget(curTarget);
-        if (getGunTurnRemainingRadians() < Math.PI / 256.0
+        final boolean result = aimAtTarget(curTarget);
+        if (result && getGunTurnRemainingRadians() < AIM_DELTA
             && getGunHeat() == 0.0) {
           setFire(2.0);
         }
@@ -71,12 +72,24 @@ public class ElizabotII extends AdvancedRobot {
     }
   }
 
-  private void aimAtTarget(final Target target) {
-    debug("Starting aimAtTarget");
+  /**
+   * Direct gun to aim at given target. Return true if the gun is actively aimed
+   * towards the target.
+   */
+  private boolean aimAtTarget(final Target target) {
     assert target != null;
     final Vector gunVector = Vector.polarToComponent(getGunHeadingRadians(),
         1.0);
-    final Vector aimVector = guessAimVector(target);
+    Vector aimVector = guessAimVector(target);
+    final boolean result;
+
+    if (aimVector.abs() > 0) {
+      result = true;
+    } else {
+      result = false;
+      aimVector = target.pos.minus(new Vector(getX(), getY()));
+    }
+
     final double gunAngle = gunVector.angle(aimVector);
 
     final double rotateRight = gunVector.rotate(gunAngle).angle(aimVector);
@@ -87,8 +100,14 @@ public class ElizabotII extends AdvancedRobot {
     else {
       setTurnGunLeftRadians(gunAngle);
     }
+
+    return result;
   }
 
+  /**
+   * Get a relative vector from our position to the spot to aim. The maginitude
+   * represents the bullet power.
+   */
   private Vector guessAimVector(final Target target) {
     final Vector myPos = new Vector(getX(), getY());
     final long curTime = getTime();
