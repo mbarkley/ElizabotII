@@ -41,6 +41,11 @@ public final class Vector implements Comparable<Vector> {
   public double abs() {
     return Math.sqrt(x * x + y * y);
   }
+  
+  public Vector normalize() {
+    final double abs = abs();
+    return new Vector(x / abs, y / abs);
+  }
 
   public static Vector polarToComponent(final double heading, final double magnitude) {
     return new Vector(magnitude * Math.sin(heading), magnitude * Math.cos(heading));
@@ -62,9 +67,5 @@ public final class Vector implements Comparable<Vector> {
 
   public Vector scale(final double scalar) {
     return new Vector(x * scalar, y * scalar);
-  }
-  
-  public Vector normalize() {
-    return new Vector(x / abs(), y / abs());
   }
 }

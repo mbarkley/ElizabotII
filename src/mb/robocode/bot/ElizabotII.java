@@ -3,6 +3,8 @@ package mb.robocode.bot;
 import static mb.robocode.util.Logger.debug;
 
 import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
 
 import mb.robocode.util.Vector;
 import robocode.AdvancedRobot;
@@ -25,6 +27,7 @@ public class ElizabotII extends AdvancedRobot {
   }
 
   private Target curTarget;
+  private static final int DEPTH = 20;
 
   private void init() {
     setColors(Color.MAGENTA, Color.MAGENTA, Color.YELLOW, Color.BLUE, null);
@@ -38,17 +41,12 @@ public class ElizabotII extends AdvancedRobot {
     init();
 
     while (true) {
-      debug("main loop start");
-
       setTurnRadarRightRadians(Double.POSITIVE_INFINITY);
-      debug("Set radar turn right positive infinity");
 
       if (curTarget != null) {
-        debug("Current target pos: " + curTarget.pos);
         aimAtTarget(curTarget);
         if (getGunTurnRemainingRadians() < Math.PI / 256.0
             && getGunHeat() == 0.0) {
-          debug("Firing gun");
           setFire(2.0);
         }
 
@@ -69,7 +67,6 @@ public class ElizabotII extends AdvancedRobot {
             - getHeadingRadians()));
       }
 
-      debug("Executing actions");
       execute();
     }
   }
@@ -77,29 +74,22 @@ public class ElizabotII extends AdvancedRobot {
   private void aimAtTarget(final Target target) {
     debug("Starting aimAtTarget");
     assert target != null;
-    debug(String.format("Gun Heading Radians: %.2f", getGunHeadingRadians()));
     final Vector gunVector = Vector.polarToComponent(getGunHeadingRadians(),
         1.0);
-    debug("Gun Vector: " + gunVector);
     final Vector aimVector = guessAimVector(target);
     final double gunAngle = gunVector.angle(aimVector);
-    debug(String.format("Gun angle: %.2f", gunAngle));
 
     final double rotateRight = gunVector.rotate(gunAngle).angle(aimVector);
     final double rotateLeft = gunVector.rotate(-gunAngle).angle(aimVector);
-    debug("rotateRight diff: " + Double.toString(rotateRight));
-    debug("rotateLeft diff: " + Double.toString(rotateLeft));
     if (rotateRight <= rotateLeft) {
       setTurnGunRightRadians(gunAngle);
     }
     else {
       setTurnGunLeftRadians(gunAngle);
     }
-    debug("Finished aimAtTarget");
   }
 
   private Vector guessAimVector(final Target target) {
-    final int DEPTH = 20;
     final Vector myPos = new Vector(getX(), getY());
     final long curTime = getTime();
 
@@ -112,16 +102,59 @@ public class ElizabotII extends AdvancedRobot {
 
       if (bulletPower <= Rules.MAX_BULLET_POWER
           && bulletPower >= Rules.MIN_BULLET_POWER) {
-        return relPos.scale(bulletPower / relPos.abs());
+        return relPos.normalize().scale(bulletPower);
       }
     }
 
-    return target.pos.add(target.vel.scale(DEPTH + 1)).minus(myPos).normalize()
-        .scale(Rules.MAX_BULLET_POWER);
+    return new Vector(0, 0);
   }
 
+  /**
+   * Get position vector for a target for a number of turns in the future.
+   */
   private Vector getFuturePositionEstimate(final Target target, final int turns) {
     return target.pos.add(target.vel.scale((double) turns));
+  }
+
+  @Override
+  public void onPaint(Graphics2D g) {
+    if (curTarget != null) {
+      g.setColor(Color.YELLOW);
+      final long time = getTime();
+      for (int turns = 0; turns <= DEPTH; turns++) {
+        final Vector pos = getFuturePositionEstimate(curTarget,
+            (int) (turns + (time - curTarget.time)));
+        fillSquareAt(pos, 4, g);
+      }
+
+      Vector aimAt = guessAimVector(curTarget);
+      if (aimAt.abs() > 0) {
+        g.setColor(Color.RED);
+        aimAt = aimAt.normalize().scale(Rules.getBulletSpeed(aimAt.abs()));
+        Vector curPos = new Vector(getX(), getY()).add(aimAt);
+        final Vector upperBound = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
+        final Vector lowerBound = new Vector(0,0);
+
+        while (curPos.isBoundBy(upperBound) && lowerBound.isBoundBy(curPos)) {
+          fillSquareAt(curPos, 4, g);
+          curPos = curPos.add(aimAt);
+        }
+      }
+    }
+  }
+
+  private void fillSquareAt(final Vector pos, final int size, final Graphics2D g) {
+    fillSquareAt(pos.x, pos.y, size, g);
+  }
+
+  private void fillSquareAt(final double x, final double y, final int size,
+      Graphics2D g) {
+    fillSquareAt((int) x, (int) y, size, g);
+  }
+
+  private void fillSquareAt(final int x, final int y, final int size,
+      Graphics2D g) {
+    g.fill(new Rectangle(x - size / 2, y - size / 2, size, size));
   }
 
   @Override
