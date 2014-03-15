@@ -31,6 +31,7 @@ public class ElizabotII extends AdvancedRobot {
 
   private Target curTarget;
   private Map<String, Target> recentTargets = new HashMap<String, Target>();
+  private Vector _guessAimDebug;
   private static final int DEPTH = 20;
   private static final double AIM_DELTA = 0.0000000001;
 
@@ -148,10 +149,12 @@ public class ElizabotII extends AdvancedRobot {
 
       if (bulletPower <= Rules.MAX_BULLET_POWER
           && bulletPower >= Rules.MIN_BULLET_POWER) {
+        _guessAimDebug = targetPos;
         return relPos.normalize().scale(bulletPower);
       }
     }
 
+    _guessAimDebug = null;
     return new Vector(0, 0);
   }
 
@@ -205,6 +208,10 @@ public class ElizabotII extends AdvancedRobot {
         while (curPos.isBoundBy(upperBound) && lowerBound.isBoundBy(curPos)) {
           fillSquareAt(curPos, 4, g);
           curPos = curPos.add(aimAt);
+        }
+        
+        if (_guessAimDebug != null) {
+          fillSquareAt(_guessAimDebug, 8, g);
         }
       }
     }
