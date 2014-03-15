@@ -37,6 +37,11 @@ public class ElizabotII extends AdvancedRobot {
   
   private Vector topRight;
   private Vector bottomLeft = new Vector(0, 0);
+  
+  @Override
+  public String getName() {
+    return getClass().getSimpleName();
+  }
 
   private void init() {
     setColors(Color.MAGENTA, Color.MAGENTA, Color.YELLOW, Color.BLUE, null);
