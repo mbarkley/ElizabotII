@@ -46,7 +46,21 @@ public class ElizabotII extends AdvancedRobot {
     init();
 
     while (true) {
-      setTurnRadarRightRadians(Double.POSITIVE_INFINITY);
+      if (curTarget != null && isStale(curTarget)) {
+        curTarget = null;
+      }
+
+      if (curTarget == null) {
+        setTurnRadarRightRadians(Double.POSITIVE_INFINITY);
+      } else {
+        final Vector targetPos = getFuturePositionEstimate(curTarget,
+            (int) (getTime() - curTarget.time));
+        final Vector relPos = targetPos.minus(new Vector(getX(), getY()));
+        final Vector radarVector = Vector.polarToComponent(
+            getRadarHeadingRadians(), 1.0);
+
+        setTurnRadarRightRadians(getRotationAngle(radarVector, relPos));
+      }
 
       if (curTarget != null) {
         final boolean result = aimAtTarget(curTarget);
@@ -76,6 +90,10 @@ public class ElizabotII extends AdvancedRobot {
     }
   }
 
+  private boolean isStale(final Target target) {
+    return getTime() - target.time > 10;
+  }
+
   /**
    * Direct gun to aim at given target. Return true if the gun is actively aimed
    * towards the target.
@@ -94,18 +112,23 @@ public class ElizabotII extends AdvancedRobot {
       aimVector = target.pos.minus(new Vector(getX(), getY()));
     }
 
-    final double gunAngle = gunVector.angle(aimVector);
-
-    final double rotateRight = gunVector.rotate(gunAngle).angle(aimVector);
-    final double rotateLeft = gunVector.rotate(-gunAngle).angle(aimVector);
-    if (rotateRight <= rotateLeft) {
-      setTurnGunRightRadians(gunAngle);
-    }
-    else {
-      setTurnGunLeftRadians(gunAngle);
-    }
+    setTurnGunRightRadians(getRotationAngle(gunVector, aimVector));
 
     return result;
+  }
+
+  private double getRotationAngle(final Vector deviceVector,
+      final Vector targetVector) {
+    final double angle = deviceVector.angle(targetVector);
+
+    final double rotateRight = deviceVector.rotate(angle).angle(targetVector);
+    final double rotateLeft = deviceVector.rotate(-angle).angle(targetVector);
+    if (rotateRight <= rotateLeft) {
+      return angle;
+    }
+    else {
+      return -angle;
+    }
   }
 
   /**
@@ -137,13 +160,14 @@ public class ElizabotII extends AdvancedRobot {
    */
   private Vector getFuturePositionEstimate(final Target target, final int turns) {
     final Target last = recentTargets.get(target.name);
-    if (last == null) {
+    if (last == null || isStale(last)) {
       return target.pos.add(target.vel.scale((double) turns));
     } else {
       Vector pos = target.pos;
       Vector vel = target.vel;
-      final Vector accel = target.vel.minus(last.vel).scale(1.0 / (target.time - last.time));
-      
+      final Vector accel = target.vel.minus(last.vel).scale(
+          1.0 / (target.time - last.time));
+
       for (int t = 1; t < turns; t++) {
         vel = vel.add(accel);
         if (vel.abs() > Rules.MAX_VELOCITY) {
@@ -151,7 +175,7 @@ public class ElizabotII extends AdvancedRobot {
         }
         pos = pos.add(vel);
       }
-      
+
       return pos;
     }
   }
@@ -168,9 +192,11 @@ public class ElizabotII extends AdvancedRobot {
       }
 
       Vector aimAt = guessAimVector(curTarget);
-      if (aimAt.abs() > 0) {
+      final double power = aimAt.abs();
+      final double speed = Rules.getBulletSpeed(power);
+      if (power > 0) {
         g.setColor(Color.RED);
-        aimAt = aimAt.normalize().scale(Rules.getBulletSpeed(aimAt.abs()));
+        aimAt = aimAt.normalize().scale(speed);
         Vector curPos = new Vector(getX(), getY()).add(aimAt);
         final Vector upperBound = new Vector(getBattleFieldWidth(),
             getBattleFieldHeight());
