@@ -81,16 +81,12 @@ public class ElizabotII extends AdvancedRobot {
     final Vector gunVector = Vector.polarToComponent(getGunHeadingRadians(),
         1.0);
     debug("Gun Vector: " + gunVector);
-    final double bulletTime = Math.floor(target.pos.minus(
-        new Vector(getX(), getY())).abs()
-        / Rules.getBulletSpeed(2.0));
-    final Vector relTargetPos = target.pos.add(target.vel.scale(bulletTime))
-        .minus(new Vector(getX(), getY()));
-    final double gunAngle = gunVector.angle(relTargetPos);
+    final Vector aimVector = guessAimVector(target);
+    final double gunAngle = gunVector.angle(aimVector);
     debug(String.format("Gun angle: %.2f", gunAngle));
 
-    final double rotateRight = gunVector.rotate(gunAngle).angle(relTargetPos);
-    final double rotateLeft = gunVector.rotate(-gunAngle).angle(relTargetPos);
+    final double rotateRight = gunVector.rotate(gunAngle).angle(aimVector);
+    final double rotateLeft = gunVector.rotate(-gunAngle).angle(aimVector);
     debug("rotateRight diff: " + Double.toString(rotateRight));
     debug("rotateLeft diff: " + Double.toString(rotateLeft));
     if (rotateRight <= rotateLeft) {
@@ -100,6 +96,32 @@ public class ElizabotII extends AdvancedRobot {
       setTurnGunLeftRadians(gunAngle);
     }
     debug("Finished aimAtTarget");
+  }
+
+  private Vector guessAimVector(final Target target) {
+    final int DEPTH = 20;
+    final Vector myPos = new Vector(getX(), getY());
+    final long curTime = getTime();
+
+    for (int turns = 0; turns <= DEPTH; turns++) {
+      final int timeDiff = turns + (int) (curTime - target.time);
+      final Vector targetPos = getFuturePositionEstimate(target, timeDiff);
+      final Vector relPos = targetPos.minus(myPos);
+      final double bulletSpeed = relPos.abs() / ((double) timeDiff);
+      final double bulletPower = (20.0 - bulletSpeed) / 3.0;
+
+      if (bulletPower <= Rules.MAX_BULLET_POWER
+          && bulletPower >= Rules.MIN_BULLET_POWER) {
+        return relPos.scale(bulletPower / relPos.abs());
+      }
+    }
+
+    return target.pos.add(target.vel.scale(DEPTH + 1)).minus(myPos).normalize()
+        .scale(Rules.MAX_BULLET_POWER);
+  }
+
+  private Vector getFuturePositionEstimate(final Target target, final int turns) {
+    return target.pos.add(target.vel.scale((double) turns));
   }
 
   @Override

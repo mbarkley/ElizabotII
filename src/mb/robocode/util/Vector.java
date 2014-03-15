@@ -63,4 +63,8 @@ public final class Vector implements Comparable<Vector> {
   public Vector scale(final double scalar) {
     return new Vector(x * scalar, y * scalar);
   }
+  
+  public Vector normalize() {
+    return new Vector(x / abs(), y / abs());
+  }
 }
