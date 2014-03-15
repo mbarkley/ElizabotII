@@ -32,14 +32,18 @@ public class ElizabotII extends AdvancedRobot {
   private Target curTarget;
   private Map<String, Target> recentTargets = new HashMap<String, Target>();
   private Vector _guessAimDebug;
-  private static final int DEPTH = 60;
+  private static final int DEPTH = 100;
   private static final double AIM_DELTA = 0.001;
+  
+  private Vector topRight;
+  private Vector bottomLeft = new Vector(0, 0);
 
   private void init() {
     setColors(Color.MAGENTA, Color.MAGENTA, Color.YELLOW, Color.BLUE, null);
     setAdjustGunForRobotTurn(true);
     setAdjustRadarForGunTurn(true);
     setAdjustRadarForRobotTurn(true);
+    topRight = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
   }
 
   @Override
@@ -148,7 +152,7 @@ public class ElizabotII extends AdvancedRobot {
       final double bulletPower = (20.0 - bulletSpeed) / 3.0;
 
       if (bulletPower <= Rules.MAX_BULLET_POWER
-          && bulletPower >= Rules.MIN_BULLET_POWER) {
+          && bulletPower >= Rules.MIN_BULLET_POWER && isOnBoard(targetPos)) {
         _guessAimDebug = targetPos;
         return relPos.normalize().scale(bulletPower);
       }
@@ -156,6 +160,10 @@ public class ElizabotII extends AdvancedRobot {
 
     _guessAimDebug = null;
     return new Vector(0, 0);
+  }
+  
+  private boolean isOnBoard(final Vector pos) {
+    return pos.isBoundBy(topRight) && bottomLeft.isBoundBy(pos);
   }
 
   /**
