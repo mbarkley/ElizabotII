@@ -1,10 +1,10 @@
 package mb.robocode.bot;
 
-import static mb.robocode.util.Logger.debug;
-
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.util.HashMap;
+import java.util.Map;
 
 import mb.robocode.util.Vector;
 import robocode.AdvancedRobot;
@@ -15,11 +15,14 @@ import robocode.util.Utils;
 public class ElizabotII extends AdvancedRobot {
 
   private class Target {
+    public final String name;
     public final Vector pos;
     public final Vector vel;
     public final long time;
 
-    private Target(final Vector pos, final Vector vel, final long time) {
+    private Target(final String name, final Vector pos, final Vector vel,
+        final long time) {
+      this.name = name;
       this.pos = pos;
       this.vel = vel;
       this.time = time;
@@ -27,6 +30,7 @@ public class ElizabotII extends AdvancedRobot {
   }
 
   private Target curTarget;
+  private Map<String, Target> recentTargets = new HashMap<String, Target>();
   private static final int DEPTH = 20;
   private static final double AIM_DELTA = 0.0000000001;
 
@@ -132,7 +136,24 @@ public class ElizabotII extends AdvancedRobot {
    * Get position vector for a target for a number of turns in the future.
    */
   private Vector getFuturePositionEstimate(final Target target, final int turns) {
-    return target.pos.add(target.vel.scale((double) turns));
+    final Target last = recentTargets.get(target.name);
+    if (last == null) {
+      return target.pos.add(target.vel.scale((double) turns));
+    } else {
+      Vector pos = target.pos;
+      Vector vel = target.vel;
+      final Vector accel = target.vel.minus(last.vel).scale(1.0 / (target.time - last.time));
+      
+      for (int t = 1; t < turns; t++) {
+        vel = vel.add(accel);
+        if (vel.abs() > Rules.MAX_VELOCITY) {
+          vel = vel.normalize().scale(Rules.MAX_VELOCITY);
+        }
+        pos = pos.add(vel);
+      }
+      
+      return pos;
+    }
   }
 
   @Override
@@ -151,8 +172,9 @@ public class ElizabotII extends AdvancedRobot {
         g.setColor(Color.RED);
         aimAt = aimAt.normalize().scale(Rules.getBulletSpeed(aimAt.abs()));
         Vector curPos = new Vector(getX(), getY()).add(aimAt);
-        final Vector upperBound = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
-        final Vector lowerBound = new Vector(0,0);
+        final Vector upperBound = new Vector(getBattleFieldWidth(),
+            getBattleFieldHeight());
+        final Vector lowerBound = new Vector(0, 0);
 
         while (curPos.isBoundBy(upperBound) && lowerBound.isBoundBy(curPos)) {
           fillSquareAt(curPos, 4, g);
@@ -178,31 +200,22 @@ public class ElizabotII extends AdvancedRobot {
 
   @Override
   public void onScannedRobot(final ScannedRobotEvent event) {
-    debug("ScannedRobotEvent");
-    debug(String.format("Scan Heading: %.2f",
-        getHeadingRadians() + event.getBearingRadians()));
-    debug(String.format("Scan Distance: %.2f", event.getDistance()));
-
     final Vector enemyPos = Vector.polarToComponent(
         getHeadingRadians() + event.getBearingRadians(),
         event.getDistance()).add(new Vector(getX(), getY()));
 
-    debug(String.format("Pos vector: %s", enemyPos));
-
     final Vector enemyVel = Vector.polarToComponent(event.getHeadingRadians(),
         event.getVelocity());
-    final Target target = new Target(enemyPos, enemyVel, getTime());
-
-    if (curTarget != null)
-      debug(String.format("curTarget score: %.2f", scoreTarget(curTarget)));
-    else
-      debug("curTarget is null");
-
-    debug(String.format("newTarget score: %.2f", scoreTarget(target)));
+    final Target target = new Target(event.getName(), enemyPos, enemyVel,
+        getTime());
 
     if (curTarget == null || scoreTarget(curTarget) < scoreTarget(target)) {
-      debug("setting new target");
+      if (curTarget != null) {
+        recentTargets.put(curTarget.name, curTarget);
+      }
       curTarget = target;
+    } else {
+      recentTargets.put(target.name, target);
     }
   }
 
