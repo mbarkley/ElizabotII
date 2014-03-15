@@ -64,10 +64,10 @@ public class ElizabotII extends AdvancedRobot {
       }
 
       if (curTarget != null) {
-        final boolean result = aimAtTarget(curTarget);
-        if (result && getGunTurnRemainingRadians() < AIM_DELTA
+        final double firePower = aimAtTarget(curTarget);
+        if (firePower != 0.0 && getGunTurnRemainingRadians() < AIM_DELTA
             && getGunHeat() == 0.0) {
-          setFire(2.0);
+          setFire(firePower);
         }
 
         Vector vel = Vector.polarToComponent(getHeadingRadians(),
@@ -96,20 +96,20 @@ public class ElizabotII extends AdvancedRobot {
   }
 
   /**
-   * Direct gun to aim at given target. Return true if the gun is actively aimed
-   * towards the target.
+   * Direct gun to aim at given target. Returns the firepower (0 is firing
+   * shouldn't happen). towards the target.
    */
-  private boolean aimAtTarget(final Target target) {
+  private double aimAtTarget(final Target target) {
     assert target != null;
     final Vector gunVector = Vector.polarToComponent(getGunHeadingRadians(),
         1.0);
     Vector aimVector = guessAimVector(target);
-    final boolean result;
+    final double result;
 
     if (aimVector.abs() > 0) {
-      result = true;
+      result = aimVector.abs();
     } else {
-      result = false;
+      result = 0.0;
       aimVector = target.pos.minus(new Vector(getX(), getY()));
     }
 
@@ -144,7 +144,7 @@ public class ElizabotII extends AdvancedRobot {
       final int timeDiff = turns + (int) (curTime - target.time);
       final Vector targetPos = getFuturePositionEstimate(target, timeDiff);
       final Vector relPos = targetPos.minus(myPos);
-      final double bulletSpeed = relPos.abs() / ((double) timeDiff);
+      final double bulletSpeed = relPos.abs() / ((double) turns);
       final double bulletPower = (20.0 - bulletSpeed) / 3.0;
 
       if (bulletPower <= Rules.MAX_BULLET_POWER
@@ -209,7 +209,7 @@ public class ElizabotII extends AdvancedRobot {
           fillSquareAt(curPos, 4, g);
           curPos = curPos.add(aimAt);
         }
-        
+
         if (_guessAimDebug != null) {
           fillSquareAt(_guessAimDebug, 8, g);
         }
