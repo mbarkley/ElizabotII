@@ -29,15 +29,45 @@ public class ElizabotII extends AdvancedRobot {
     }
   }
 
+  private interface MovementDriver {
+    void drive();
+  }
+
+  private class BasicDriver implements MovementDriver {
+
+    @Override
+    public void drive() {
+      if (curTarget != null) {
+        Vector vel = Vector.polarToComponent(getHeadingRadians(),
+            (getVelocity() > 0.0) ? getVelocity() : 1.0);
+        Vector displacement = Vector.polarToComponent(
+            vel
+                .rotate(Math.PI / 2.0).heading(), 100.0);
+        if (!curTarget.pos.add(displacement).isBoundBy(
+            new Vector(getBattleFieldWidth(), getBattleFieldHeight()))) {
+          displacement.rotate(Math.PI);
+        }
+
+        final Vector move = curTarget.pos.add(displacement).minus(
+            new Vector(getX(), getY()));
+        setAhead(move.abs());
+        setTurnRightRadians(Utils.normalRelativeAngle(move.heading()
+            - getHeadingRadians()));
+      }
+    }
+
+  }
+
   private Target curTarget;
   private Map<String, Target> recentTargets = new HashMap<String, Target>();
+  private MovementDriver driver;
   private Vector _guessAimDebug;
   private static final int DEPTH = 100;
   private static final double AIM_DELTA = 0.001;
-  
+
   private Vector topRight;
   private Vector bottomLeft = new Vector(0, 0);
-  
+
   @Override
   public String getName() {
     return getClass().getSimpleName();
@@ -49,6 +79,7 @@ public class ElizabotII extends AdvancedRobot {
     setAdjustRadarForGunTurn(true);
     setAdjustRadarForRobotTurn(true);
     topRight = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
+    driver = new BasicDriver();
   }
 
   @Override
@@ -78,23 +109,9 @@ public class ElizabotII extends AdvancedRobot {
             && getGunHeat() == 0.0) {
           setFire(firePower);
         }
-
-        Vector vel = Vector.polarToComponent(getHeadingRadians(),
-            (getVelocity() > 0.0) ? getVelocity() : 1.0);
-        Vector displacement = Vector.polarToComponent(
-            vel
-                .rotate(Math.PI / 2.0).heading(), 100.0);
-        if (!curTarget.pos.add(displacement).isBoundBy(
-            new Vector(getBattleFieldWidth(), getBattleFieldHeight()))) {
-          displacement.rotate(Math.PI);
-        }
-
-        final Vector move = curTarget.pos.add(displacement).minus(
-            new Vector(getX(), getY()));
-        setAhead(move.abs());
-        setTurnRightRadians(Utils.normalRelativeAngle(move.heading()
-            - getHeadingRadians()));
       }
+      
+      driver.drive();
 
       execute();
     }
@@ -166,7 +183,7 @@ public class ElizabotII extends AdvancedRobot {
     _guessAimDebug = null;
     return new Vector(0, 0);
   }
-  
+
   private boolean isOnBoard(final Vector pos) {
     return pos.isBoundBy(topRight) && bottomLeft.isBoundBy(pos);
   }
