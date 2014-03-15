@@ -55,4 +55,12 @@ public final class Vector implements Comparable<Vector> {
   public String toString() {
     return String.format("(%.2f, %.2f)", x, y);
   }
+
+  public boolean isBoundBy(final Vector v) {
+    return v.x >= x && v.y >= y;
+  }
+
+  public Vector scale(final double scalar) {
+    return new Vector(x * scalar, y * scalar);
+  }
 }

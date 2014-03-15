@@ -6,7 +6,9 @@ import java.awt.Color;
 
 import mb.robocode.util.Vector;
 import robocode.AdvancedRobot;
+import robocode.Rules;
 import robocode.ScannedRobotEvent;
+import robocode.util.Utils;
 
 public class ElizabotII extends AdvancedRobot {
 
@@ -49,7 +51,24 @@ public class ElizabotII extends AdvancedRobot {
           debug("Firing gun");
           setFire(2.0);
         }
+
+        Vector vel = Vector.polarToComponent(getHeadingRadians(),
+            (getVelocity() > 0.0) ? getVelocity() : 1.0);
+        Vector displacement = Vector.polarToComponent(
+            vel
+                .rotate(Math.PI / 2.0).heading(), 100.0);
+        if (!curTarget.pos.add(displacement).isBoundBy(
+            new Vector(getBattleFieldWidth(), getBattleFieldHeight()))) {
+          displacement.rotate(Math.PI);
+        }
+
+        final Vector move = curTarget.pos.add(displacement).minus(
+            new Vector(getX(), getY()));
+        setAhead(move.abs());
+        setTurnRightRadians(Utils.normalRelativeAngle(move.heading()
+            - getHeadingRadians()));
       }
+
       debug("Executing actions");
       execute();
     }
@@ -62,7 +81,11 @@ public class ElizabotII extends AdvancedRobot {
     final Vector gunVector = Vector.polarToComponent(getGunHeadingRadians(),
         1.0);
     debug("Gun Vector: " + gunVector);
-    final Vector relTargetPos = target.pos.minus(new Vector(getX(), getY()));
+    final double bulletTime = Math.floor(target.pos.minus(
+        new Vector(getX(), getY())).abs()
+        / Rules.getBulletSpeed(2.0));
+    final Vector relTargetPos = target.pos.add(target.vel.scale(bulletTime))
+        .minus(new Vector(getX(), getY()));
     final double gunAngle = gunVector.angle(relTargetPos);
     debug(String.format("Gun angle: %.2f", gunAngle));
 
@@ -85,10 +108,13 @@ public class ElizabotII extends AdvancedRobot {
     debug(String.format("Scan Heading: %.2f",
         getHeadingRadians() + event.getBearingRadians()));
     debug(String.format("Scan Distance: %.2f", event.getDistance()));
+
     final Vector enemyPos = Vector.polarToComponent(
         getHeadingRadians() + event.getBearingRadians(),
         event.getDistance()).add(new Vector(getX(), getY()));
+
     debug(String.format("Pos vector: %s", enemyPos));
+
     final Vector enemyVel = Vector.polarToComponent(event.getHeadingRadians(),
         event.getVelocity());
     final Target target = new Target(enemyPos, enemyVel, getTime());
@@ -97,7 +123,9 @@ public class ElizabotII extends AdvancedRobot {
       debug(String.format("curTarget score: %.2f", scoreTarget(curTarget)));
     else
       debug("curTarget is null");
+
     debug(String.format("newTarget score: %.2f", scoreTarget(target)));
+
     if (curTarget == null || scoreTarget(curTarget) < scoreTarget(target)) {
       debug("setting new target");
       curTarget = target;
@@ -105,7 +133,11 @@ public class ElizabotII extends AdvancedRobot {
   }
 
   private double scoreTarget(final Target target) {
-    return (target.time == getTime()) ? 1.0 : 0.0;
+    final double timeScore = Math.pow(0.95, getTime() - target.time);
+    final double posScore = 300.0 / (target.pos
+        .minus(new Vector(getX(), getY())).abs());
+
+    return posScore * timeScore;
   }
 
 }
