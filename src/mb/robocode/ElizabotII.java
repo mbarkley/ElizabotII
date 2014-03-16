@@ -3,9 +3,9 @@ package mb.robocode;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.util.HashMap;
-import java.util.Map;
 
+import mb.robocode.tools.api.MovementEstimator;
+import mb.robocode.tools.impl.AccelerationMovementEstimator;
 import mb.robocode.util.Target;
 import mb.robocode.util.Vector;
 import robocode.AdvancedRobot;
@@ -46,8 +46,8 @@ public class ElizabotII extends AdvancedRobot {
   }
 
   private Target curTarget;
-  private Map<String, Target> recentTargets = new HashMap<String, Target>();
   private MovementDriver driver;
+  private MovementEstimator movementEstimator;
   private Vector _guessAimDebug;
   private static final int DEPTH = 100;
   private static final double AIM_DELTA = 0.001;
@@ -67,6 +67,7 @@ public class ElizabotII extends AdvancedRobot {
     setAdjustRadarForRobotTurn(true);
     topRight = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
     driver = new BasicDriver();
+    movementEstimator = new AccelerationMovementEstimator();
   }
 
   @Override
@@ -74,14 +75,14 @@ public class ElizabotII extends AdvancedRobot {
     init();
 
     while (true) {
-      if (curTarget != null && isStale(curTarget)) {
+      if (curTarget != null && curTarget.isStale(getTime())) {
         curTarget = null;
       }
 
       if (curTarget == null) {
         setTurnRadarRightRadians(Double.POSITIVE_INFINITY);
       } else {
-        final Vector targetPos = getFuturePositionEstimate(curTarget,
+        final Vector targetPos = movementEstimator.estimatePosition(curTarget,
             (int) (getTime() - curTarget.time));
         final Vector relPos = targetPos.minus(new Vector(getX(), getY()));
         final Vector radarVector = Vector.polarToComponent(
@@ -102,10 +103,6 @@ public class ElizabotII extends AdvancedRobot {
 
       execute();
     }
-  }
-
-  private boolean isStale(final Target target) {
-    return getTime() - target.time > 10;
   }
 
   /**
@@ -155,7 +152,7 @@ public class ElizabotII extends AdvancedRobot {
 
     for (int turns = DEPTH; turns >= 0; turns--) {
       final int timeDiff = turns + (int) (curTime - target.time);
-      final Vector targetPos = getFuturePositionEstimate(target, timeDiff);
+      final Vector targetPos = movementEstimator.estimatePosition(target, timeDiff);
       final Vector relPos = targetPos.minus(myPos);
       final double bulletSpeed = relPos.abs() / ((double) turns - 1);
       final double bulletPower = (20.0 - bulletSpeed) / 3.0;
@@ -175,38 +172,13 @@ public class ElizabotII extends AdvancedRobot {
     return pos.isBoundBy(topRight) && bottomLeft.isBoundBy(pos);
   }
 
-  /**
-   * Get position vector for a target for a number of turns in the future.
-   */
-  private Vector getFuturePositionEstimate(final Target target, final int turns) {
-    final Target last = recentTargets.get(target.name);
-    if (last == null || isStale(last)) {
-      return target.pos.add(target.vel.scale((double) turns));
-    } else {
-      Vector pos = target.pos;
-      Vector vel = target.vel;
-      final Vector accel = target.vel.minus(last.vel).scale(
-          1.0 / (target.time - last.time));
-
-      for (int t = 1; t < turns; t++) {
-        vel = vel.add(accel);
-        if (vel.abs() > Rules.MAX_VELOCITY) {
-          vel = vel.normalize().scale(Rules.MAX_VELOCITY);
-        }
-        pos = pos.add(vel);
-      }
-
-      return pos;
-    }
-  }
-
   @Override
   public void onPaint(Graphics2D g) {
     if (curTarget != null) {
       g.setColor(Color.YELLOW);
       final long time = getTime();
       for (int turns = 0; turns <= DEPTH; turns++) {
-        final Vector pos = getFuturePositionEstimate(curTarget,
+        final Vector pos = movementEstimator.estimatePosition(curTarget,
             (int) (turns + (time - curTarget.time)));
         fillSquareAt(pos, 4, g);
       }
@@ -260,13 +232,10 @@ public class ElizabotII extends AdvancedRobot {
         getTime());
 
     if (curTarget == null || scoreTarget(curTarget) < scoreTarget(target)) {
-      if (curTarget != null) {
-        recentTargets.put(curTarget.name, curTarget);
-      }
       curTarget = target;
-    } else {
-      recentTargets.put(target.name, target);
     }
+    
+    movementEstimator.update(target);
   }
 
   @Override
@@ -274,7 +243,6 @@ public class ElizabotII extends AdvancedRobot {
     if (curTarget != null && event.getName().equals(curTarget.name)) {
       curTarget = null;
     }
-    recentTargets.remove(event.getName());
   }
 
   private double scoreTarget(final Target target) {
