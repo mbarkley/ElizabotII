@@ -1,4 +1,4 @@
-package mb.robocode.bot;
+package mb.robocode;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -6,6 +6,7 @@ import java.awt.Rectangle;
 import java.util.HashMap;
 import java.util.Map;
 
+import mb.robocode.util.Target;
 import mb.robocode.util.Vector;
 import robocode.AdvancedRobot;
 import robocode.RobotDeathEvent;
@@ -14,21 +15,6 @@ import robocode.ScannedRobotEvent;
 import robocode.util.Utils;
 
 public class ElizabotII extends AdvancedRobot {
-
-  private class Target {
-    public final String name;
-    public final Vector pos;
-    public final Vector vel;
-    public final long time;
-
-    private Target(final String name, final Vector pos, final Vector vel,
-        final long time) {
-      this.name = name;
-      this.pos = pos;
-      this.vel = vel;
-      this.time = time;
-    }
-  }
 
   private interface MovementDriver {
     void drive();
@@ -111,7 +97,7 @@ public class ElizabotII extends AdvancedRobot {
           setFire(firePower);
         }
       }
-      
+
       driver.drive();
 
       execute();
