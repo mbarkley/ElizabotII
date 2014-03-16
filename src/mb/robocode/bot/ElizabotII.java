@@ -8,6 +8,7 @@ import java.util.Map;
 
 import mb.robocode.util.Vector;
 import robocode.AdvancedRobot;
+import robocode.RobotDeathEvent;
 import robocode.Rules;
 import robocode.ScannedRobotEvent;
 import robocode.util.Utils;
@@ -280,6 +281,14 @@ public class ElizabotII extends AdvancedRobot {
     } else {
       recentTargets.put(target.name, target);
     }
+  }
+
+  @Override
+  public void onRobotDeath(final RobotDeathEvent event) {
+    if (curTarget != null && event.getName().equals(curTarget.name)) {
+      curTarget = null;
+    }
+    recentTargets.remove(event.getName());
   }
 
   private double scoreTarget(final Target target) {
