@@ -12,18 +12,17 @@ import robocode.AdvancedRobot;
 import robocode.RobotDeathEvent;
 import robocode.Rules;
 import robocode.ScannedRobotEvent;
-import robocode.util.Utils;
 
 public class ElizabotII extends AdvancedRobot {
 
   private interface MovementDriver {
-    void drive();
+    Vector movement();
   }
 
   private class BasicDriver implements MovementDriver {
 
     @Override
-    public void drive() {
+    public Vector movement() {
       if (curTarget != null) {
         Vector vel = Vector.polarToComponent(getHeadingRadians(),
             (getVelocity() > 0.0) ? getVelocity() : 1.0);
@@ -37,9 +36,10 @@ public class ElizabotII extends AdvancedRobot {
 
         final Vector move = curTarget.pos.add(displacement).minus(
             new Vector(getX(), getY()));
-        setAhead(move.abs());
-        setTurnRightRadians(Utils.normalRelativeAngle(move.heading()
-            - getHeadingRadians()));
+
+        return move;
+      } else {
+        return new Vector(0, 0);
       }
     }
 
@@ -99,9 +99,25 @@ public class ElizabotII extends AdvancedRobot {
         }
       }
 
-      driver.drive();
+      setDrive(driver.movement());
 
       execute();
+    }
+  }
+
+  private void setDrive(final Vector vector) {
+    if (vector.abs() == 0.0) {
+      setAhead(0.0);
+      setTurnRightRadians(0.0);
+    } else {
+      final Vector headingVector = Vector.polarToComponent(getHeadingRadians(),
+          1.0);
+      final double rawAngle = vector.angle(headingVector);
+      final double turnAngle = getRotationAngle(headingVector, vector);
+      final double sign = (rawAngle > Math.PI / 2.0) ? -1.0 : 1.0;
+
+      setAhead(sign * vector.abs());
+      setTurnRightRadians(turnAngle);
     }
   }
 
@@ -152,7 +168,8 @@ public class ElizabotII extends AdvancedRobot {
 
     for (int turns = DEPTH; turns >= 0; turns--) {
       final int timeDiff = turns + (int) (curTime - target.time);
-      final Vector targetPos = movementEstimator.estimatePosition(target, timeDiff);
+      final Vector targetPos = movementEstimator.estimatePosition(target,
+          timeDiff);
       final Vector relPos = targetPos.minus(myPos);
       final double bulletSpeed = relPos.abs() / ((double) turns - 1);
       final double bulletPower = (20.0 - bulletSpeed) / 3.0;
@@ -234,7 +251,7 @@ public class ElizabotII extends AdvancedRobot {
     if (curTarget == null || scoreTarget(curTarget) < scoreTarget(target)) {
       curTarget = target;
     }
-    
+
     movementEstimator.update(target);
   }
 
