@@ -3,12 +3,16 @@ package mb.robocode;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Random;
 
 import mb.robocode.tools.api.MovementEstimator;
 import mb.robocode.tools.impl.AccelerationMovementEstimator;
 import mb.robocode.util.Target;
 import mb.robocode.util.Vector;
 import robocode.AdvancedRobot;
+import robocode.HitRobotEvent;
 import robocode.RobotDeathEvent;
 import robocode.Rules;
 import robocode.ScannedRobotEvent;
@@ -17,6 +21,8 @@ public class ElizabotII extends AdvancedRobot {
 
   private interface MovementDriver {
     Vector movement();
+
+    void onHitRobot(HitRobotEvent event);
   }
 
   private class OneOnOneDriver implements MovementDriver {
@@ -53,7 +59,7 @@ public class ElizabotII extends AdvancedRobot {
 
         final double angle = Math.PI / 2.0
             * (Math.pow(Math.max(0.0, dist - rawVector.abs()) / dist, 1.5)
-                + Math.sin(Math.pow(2 * Math.PI * rawVector.abs() / dist, 2.0)));
+            + Math.sin(Math.pow(2 * Math.PI * rawVector.abs() / dist, 2.0)));
 
         if (!isAwayFromEdge(myPos)) {
           vector = vector.normalize().scale(buffer);
@@ -71,6 +77,72 @@ public class ElizabotII extends AdvancedRobot {
       } else {
         return new Vector(0, 0);
       }
+    }
+
+    @Override
+    public void onHitRobot(HitRobotEvent event) {
+    }
+
+  }
+
+  private class DefensiveDriver implements MovementDriver {
+
+    private final Vector[] corners;
+    private Vector destination;
+
+    private DefensiveDriver() {
+      final double margin = 1.1 * Math.sqrt(getHeight() * getHeight()
+          + getWidth() * getWidth());
+      corners = new Vector[] {
+          new Vector(margin, margin),
+          new Vector(margin, getBattleFieldHeight() - margin),
+          new Vector(getBattleFieldWidth() - margin, margin),
+          new Vector(getBattleFieldWidth() - margin, getBattleFieldHeight()
+              - margin)
+      };
+    }
+
+    private void sortCornersByDistance(final Vector myPos) {
+      Arrays.sort(corners, new Comparator<Vector>() {
+        @Override
+        public int compare(Vector o1, Vector o2) {
+          return (int) Math.signum(o1.minus(myPos).abs()
+              - o2.minus(myPos).abs());
+        }
+      });
+    }
+
+    private void sortCornersByAngle(final Vector myPos, final Vector myVel) {
+      Arrays.sort(corners, new Comparator<Vector>() {
+        private double angle(final Vector v) {
+          return v.minus(myPos).angle(myVel);
+        }
+
+        @Override
+        public int compare(Vector o1, Vector o2) {
+          return (int) (angle(o1) - angle(o2));
+        }
+      });
+    }
+
+    @Override
+    public Vector movement() {
+      final Vector myPos = new Vector(getX(), getY());
+      sortCornersByDistance(myPos);
+      if (destination == null) {
+        destination = corners[0];
+      } else if (destination.minus(myPos).abs() < 0.1) {
+        destination = corners[new Random().nextInt(2) + 1];
+      }
+
+      return destination.minus(myPos);
+    }
+
+    @Override
+    public void onHitRobot(final HitRobotEvent event) {
+      sortCornersByAngle(new Vector(getX(), getY()),
+          Vector.polarToComponent(getHeadingRadians(), getVelocity()));
+      destination = corners[3];
     }
 
   }
@@ -97,9 +169,11 @@ public class ElizabotII extends AdvancedRobot {
     setAdjustRadarForRobotTurn(true);
     topRight = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
     movementEstimator = new AccelerationMovementEstimator();
-    driver = new OneOnOneDriver(Math.sqrt(getBattleFieldHeight()
-        * getBattleFieldHeight() + getBattleFieldWidth()
-        * getBattleFieldWidth()));
+    driver = (getOthers() > 2) ? new DefensiveDriver() : new OneOnOneDriver(
+        Math
+            .sqrt(getBattleFieldHeight()
+                * getBattleFieldHeight() + getBattleFieldWidth()
+                * getBattleFieldWidth()));
   }
 
   @Override
@@ -145,8 +219,11 @@ public class ElizabotII extends AdvancedRobot {
       final Vector headingVector = Vector.polarToComponent(getHeadingRadians(),
           1.0);
       final double rawAngle = vector.angle(headingVector);
-      final double turnAngle = getRotationAngle(headingVector, vector);
       final double sign = (rawAngle > Math.PI / 2.0) ? -1.0 : 1.0;
+      double turnAngle = getRotationAngle(headingVector, vector);
+      if (sign < 0.0) {
+        turnAngle = -Math.signum(turnAngle) * (Math.PI - rawAngle);
+      }
 
       setAhead(sign * vector.abs());
       setTurnRightRadians(turnAngle);
@@ -288,9 +365,26 @@ public class ElizabotII extends AdvancedRobot {
   }
 
   @Override
+  public void onHitRobot(final HitRobotEvent event) {
+    driver.onHitRobot(event);
+    if (curTarget == null
+        || curTarget.pos.minus(new Vector(getX(), getY())).abs() > 20) {
+      curTarget = new Target(event.getName(), Vector.polarToComponent(
+          getHeadingRadians() + event.getBearingRadians(), getHeight()).add(
+          new Vector(getX(), getY())), new Vector(0, 0), event.getTime());
+    }
+  }
+
+  @Override
   public void onRobotDeath(final RobotDeathEvent event) {
     if (curTarget != null && event.getName().equals(curTarget.name)) {
       curTarget = null;
+    }
+
+    if (getOthers() <= 2) {
+      driver = new OneOnOneDriver(Math.sqrt(getBattleFieldHeight()
+          * getBattleFieldHeight() + getBattleFieldWidth()
+          * getBattleFieldWidth()));
     }
   }
 
