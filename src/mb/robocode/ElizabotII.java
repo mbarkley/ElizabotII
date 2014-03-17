@@ -19,25 +19,55 @@ public class ElizabotII extends AdvancedRobot {
     Vector movement();
   }
 
-  private class BasicDriver implements MovementDriver {
+  private class OneOnOneDriver implements MovementDriver {
+
+    private final double dist;
+    private final double buffer;
+    private double sign = 1.0;
+
+    public OneOnOneDriver(final double dist) {
+      this.dist = dist;
+      this.buffer = 1.5 * Math.sqrt(getHeight() * getHeight() + getWidth()
+          * getWidth());
+    }
+
+    private boolean isAwayFromEdge(final Vector pos) {
+      final Vector restrictedTopRight = new Vector(getBattleFieldWidth()
+          - buffer, getBattleFieldHeight() - buffer);
+      final Vector restrictedBottomLeft = new Vector(buffer, buffer);
+
+      return pos.isBoundBy(restrictedTopRight)
+          && restrictedBottomLeft.isBoundBy(pos);
+    }
 
     @Override
     public Vector movement() {
       if (curTarget != null) {
-        Vector vel = Vector.polarToComponent(getHeadingRadians(),
-            (getVelocity() > 0.0) ? getVelocity() : 1.0);
-        Vector displacement = Vector.polarToComponent(
-            vel
-                .rotate(Math.PI / 2.0).heading(), 100.0);
-        if (!curTarget.pos.add(displacement).isBoundBy(
-            new Vector(getBattleFieldWidth(), getBattleFieldHeight()))) {
-          displacement.rotate(Math.PI);
+        final Vector pos = movementEstimator.estimatePosition(curTarget,
+            (int) (getTime() - curTarget.time));
+        Vector myPos = new Vector(getX(), getY());
+        final Vector rawVector = pos.minus(myPos);
+        Vector vector = rawVector
+            .normalize()
+            .scale(2 * Rules.MAX_VELOCITY);
+
+        final double angle = Math.PI / 2.0
+            * (Math.pow(Math.max(0.0, dist - rawVector.abs()) / dist, 1.5)
+                + Math.sin(Math.pow(2 * Math.PI * rawVector.abs() / dist, 2.0)));
+
+        if (!isAwayFromEdge(myPos)) {
+          vector = vector.normalize().scale(buffer);
         }
 
-        final Vector move = curTarget.pos.add(displacement).minus(
-            new Vector(getX(), getY()));
+        if (!isAwayFromEdge(myPos.add(vector.rotate(sign * angle)))) {
+          sign = -1.0;
+        }
 
-        return move;
+        if (isAwayFromEdge(myPos.add(vector.rotate(sign * angle)))) {
+          return vector.rotate(sign * angle);
+        } else {
+          return vector;
+        }
       } else {
         return new Vector(0, 0);
       }
@@ -46,8 +76,8 @@ public class ElizabotII extends AdvancedRobot {
   }
 
   private Target curTarget;
-  private MovementDriver driver;
   private MovementEstimator movementEstimator;
+  private MovementDriver driver;
   private Vector _guessAimDebug;
   private static final int DEPTH = 100;
   private static final double AIM_DELTA = 0.001;
@@ -66,8 +96,10 @@ public class ElizabotII extends AdvancedRobot {
     setAdjustRadarForGunTurn(true);
     setAdjustRadarForRobotTurn(true);
     topRight = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
-    driver = new BasicDriver();
     movementEstimator = new AccelerationMovementEstimator();
+    driver = new OneOnOneDriver(Math.sqrt(getBattleFieldHeight()
+        * getBattleFieldHeight() + getBattleFieldWidth()
+        * getBattleFieldWidth()));
   }
 
   @Override
