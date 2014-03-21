@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import mb.robocode.tools.api.MovementEstimator;
-import mb.robocode.util.Target;
-import mb.robocode.util.Vector;
+import mb.robocode.vector.Target;
+import mb.robocode.vector.Vector;
 import robocode.Rules;
 
 public class AccelerationMovementEstimator implements MovementEstimator {

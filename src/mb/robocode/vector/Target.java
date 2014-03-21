@@ -1,4 +1,4 @@
-package mb.robocode.util;
+package mb.robocode.vector;
 
 public class Target {
   public final String name;

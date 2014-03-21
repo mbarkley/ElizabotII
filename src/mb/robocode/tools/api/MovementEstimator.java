@@ -1,7 +1,7 @@
 package mb.robocode.tools.api;
 
-import mb.robocode.util.Target;
-import mb.robocode.util.Vector;
+import mb.robocode.vector.Target;
+import mb.robocode.vector.Vector;
 
 public interface MovementEstimator {
 

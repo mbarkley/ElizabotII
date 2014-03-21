@@ -1,4 +1,4 @@
-package mb.robocode.util;
+package mb.robocode.vector;
 
 public final class Vector implements Comparable<Vector> {
   
