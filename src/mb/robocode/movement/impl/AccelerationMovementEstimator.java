@@ -1,11 +1,11 @@
-package mb.robocode.tools.impl;
+package mb.robocode.movement.impl;
 
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import mb.robocode.tools.api.MovementEstimator;
+import mb.robocode.movement.MovementEstimator;
 import mb.robocode.vector.Target;
 import mb.robocode.vector.Vector;
 import robocode.Rules;

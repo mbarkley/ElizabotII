@@ -1,4 +1,4 @@
-package mb.robocode.tools.api;
+package mb.robocode.movement;
 
 import mb.robocode.vector.Target;
 import mb.robocode.vector.Vector;
