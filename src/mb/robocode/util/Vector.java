@@ -2,6 +2,7 @@ package mb.robocode.util;
 
 public final class Vector implements Comparable<Vector> {
   
+  private static final double EPSILON = 0.0000001;
   public final double x;
   public final double y;
 
@@ -51,9 +52,17 @@ public final class Vector implements Comparable<Vector> {
     return new Vector(magnitude * Math.sin(heading), magnitude * Math.cos(heading));
   }
 
+  /**
+   * This natural ordering is inconsistent with equals.
+   */
   @Override
   public int compareTo(final Vector v) {
     return (int) Math.signum(abs() - v.abs());
+  }
+  
+  @Override
+  public boolean equals(Object obj) {
+    return obj instanceof Vector && minus((Vector) obj).abs() < EPSILON;
   }
   
   @Override

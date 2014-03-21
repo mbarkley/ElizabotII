@@ -3,10 +3,9 @@ package mb.robocode;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Random;
 
+import mb.robocode.iter.IntegerIterable;
 import mb.robocode.tools.api.MovementEstimator;
 import mb.robocode.tools.impl.AccelerationMovementEstimator;
 import mb.robocode.util.Target;
@@ -25,13 +24,13 @@ public class ElizabotII extends AdvancedRobot {
     void onHitRobot(HitRobotEvent event);
   }
 
-  private class OneOnOneDriver implements MovementDriver {
+  private class FewDriver implements MovementDriver {
 
     private final double dist;
     private final double buffer;
     private double sign = 1.0;
 
-    public OneOnOneDriver(final double dist) {
+    public FewDriver(final double dist) {
       this.dist = dist;
       this.buffer = 1.5 * Math.sqrt(getHeight() * getHeight() + getWidth()
           * getWidth());
@@ -85,12 +84,13 @@ public class ElizabotII extends AdvancedRobot {
 
   }
 
-  private class DefensiveDriver implements MovementDriver {
+  private class ManyDriver implements MovementDriver {
 
     private final Vector[] corners;
+    private final Random rand = new Random();
     private Vector destination;
 
-    private DefensiveDriver() {
+    private ManyDriver() {
       final double margin = 1.1 * Math.sqrt(getHeight() * getHeight()
           + getWidth() * getWidth());
       corners = new Vector[] {
@@ -102,37 +102,11 @@ public class ElizabotII extends AdvancedRobot {
       };
     }
 
-    private void sortCornersByDistance(final Vector myPos) {
-      Arrays.sort(corners, new Comparator<Vector>() {
-        @Override
-        public int compare(Vector o1, Vector o2) {
-          return (int) Math.signum(o1.minus(myPos).abs()
-              - o2.minus(myPos).abs());
-        }
-      });
-    }
-
-    private void sortCornersByAngle(final Vector myPos, final Vector myVel) {
-      Arrays.sort(corners, new Comparator<Vector>() {
-        private double angle(final Vector v) {
-          return v.minus(myPos).angle(myVel);
-        }
-
-        @Override
-        public int compare(Vector o1, Vector o2) {
-          return (int) (angle(o1) - angle(o2));
-        }
-      });
-    }
-
     @Override
     public Vector movement() {
       final Vector myPos = new Vector(getX(), getY());
-      sortCornersByDistance(myPos);
-      if (destination == null) {
-        destination = corners[0];
-      } else if (destination.minus(myPos).abs() < 0.1) {
-        destination = corners[new Random().nextInt(2) + 1];
+      if (destination == null || destination.minus(myPos).abs() < 0.1) {
+        destination = getDifferentRandomCorner(destination);
       }
 
       return destination.minus(myPos);
@@ -140,15 +114,68 @@ public class ElizabotII extends AdvancedRobot {
 
     @Override
     public void onHitRobot(final HitRobotEvent event) {
-      sortCornersByAngle(new Vector(getX(), getY()),
-          Vector.polarToComponent(getHeadingRadians(), getVelocity()));
-      destination = corners[3];
+      destination = getDifferentRandomCorner(destination);
+    }
+    
+    private Vector getDifferentRandomCorner(final Vector corner) {
+      int i;
+      for (i = 0; i < corners.length; i++) {
+        if (corners[i].equals(corner)) {
+          break;
+        }
+      }
+      
+      if (i < corners.length) {
+        return corners[(rand.nextInt(corners.length-1)+i+1)%corners.length];
+      } else {
+        return corners[rand.nextInt(corners.length)];
+      }
+    }
+
+  }
+
+  private interface GunTargeter {
+    Vector getAimVector(Target target, MovementEstimator movementEstimator);
+  }
+
+  private class FirstMatchTargeter implements GunTargeter {
+
+    private final Iterable<Integer> turns;
+
+    private FirstMatchTargeter(final Iterable<Integer> turns) {
+      this.turns = turns;
+    }
+
+    @Override
+    public Vector getAimVector(final Target target,
+        final MovementEstimator movementEstimator) {
+      final Vector myPos = new Vector(getX(), getY());
+      final long curTime = getTime();
+
+      for (final Integer turn : turns) {
+        final int timeDiff = turn + (int) (curTime - target.time);
+        final Vector targetPos = movementEstimator.estimatePosition(target,
+            timeDiff);
+        final Vector relPos = targetPos.minus(myPos);
+        final double bulletSpeed = relPos.abs() / ((double) turn - 1);
+        final double bulletPower = (20.0 - bulletSpeed) / 3.0;
+
+        if (bulletPower <= Rules.MAX_BULLET_POWER
+            && bulletPower >= Rules.MIN_BULLET_POWER && isOnBoard(targetPos)) {
+          _guessAimDebug = targetPos;
+          return relPos.normalize().scale(bulletPower);
+        }
+      }
+
+      _guessAimDebug = null;
+      return new Vector(0, 0);
     }
 
   }
 
   private Target curTarget;
   private MovementEstimator movementEstimator;
+  private GunTargeter gunTargeter;
   private MovementDriver driver;
   private Vector _guessAimDebug;
   private static final int DEPTH = 100;
@@ -169,11 +196,17 @@ public class ElizabotII extends AdvancedRobot {
     setAdjustRadarForRobotTurn(true);
     topRight = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
     movementEstimator = new AccelerationMovementEstimator();
-    driver = (getOthers() > 2) ? new DefensiveDriver() : new OneOnOneDriver(
-        Math
-            .sqrt(getBattleFieldHeight()
-                * getBattleFieldHeight() + getBattleFieldWidth()
-                * getBattleFieldWidth()));
+    if (getOthers() > 2) {
+      gunTargeter = new FirstMatchTargeter(new IntegerIterable(0, DEPTH + 1));
+      driver = new ManyDriver();
+    } else {
+      gunTargeter = new FirstMatchTargeter(new IntegerIterable(DEPTH, -1, -1));
+      driver = new FewDriver(
+          Math
+              .sqrt(getBattleFieldHeight()
+                  * getBattleFieldHeight() + getBattleFieldWidth()
+                  * getBattleFieldWidth()));
+    }
   }
 
   @Override
@@ -272,26 +305,7 @@ public class ElizabotII extends AdvancedRobot {
    * represents the bullet power.
    */
   private Vector guessAimVector(final Target target) {
-    final Vector myPos = new Vector(getX(), getY());
-    final long curTime = getTime();
-
-    for (int turns = DEPTH; turns >= 0; turns--) {
-      final int timeDiff = turns + (int) (curTime - target.time);
-      final Vector targetPos = movementEstimator.estimatePosition(target,
-          timeDiff);
-      final Vector relPos = targetPos.minus(myPos);
-      final double bulletSpeed = relPos.abs() / ((double) turns - 1);
-      final double bulletPower = (20.0 - bulletSpeed) / 3.0;
-
-      if (bulletPower <= Rules.MAX_BULLET_POWER
-          && bulletPower >= Rules.MIN_BULLET_POWER && isOnBoard(targetPos)) {
-        _guessAimDebug = targetPos;
-        return relPos.normalize().scale(bulletPower);
-      }
-    }
-
-    _guessAimDebug = null;
-    return new Vector(0, 0);
+    return gunTargeter.getAimVector(target, movementEstimator);
   }
 
   private boolean isOnBoard(final Vector pos) {
@@ -382,7 +396,8 @@ public class ElizabotII extends AdvancedRobot {
     }
 
     if (getOthers() <= 2) {
-      driver = new OneOnOneDriver(Math.sqrt(getBattleFieldHeight()
+      gunTargeter = new FirstMatchTargeter(new IntegerIterable(DEPTH, -1, -1));
+      driver = new FewDriver(Math.sqrt(getBattleFieldHeight()
           * getBattleFieldHeight() + getBattleFieldWidth()
           * getBattleFieldWidth()));
     }
