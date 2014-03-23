@@ -121,6 +121,10 @@ public class ElizabotII extends AdvancedRobot {
       setAhead(0.0);
       setTurnRightRadians(0.0);
     } else {
+      final double topSpeed = Math.round(Math.min(Rules.MAX_VELOCITY,
+          vector.abs()));
+      setMaxVelocity(topSpeed);
+
       final Vector headingVector = Vector.polarToComponent(getHeadingRadians(),
           1.0);
       final double rawAngle = vector.angle(headingVector);
@@ -130,7 +134,7 @@ public class ElizabotII extends AdvancedRobot {
         turnAngle = -Math.signum(turnAngle) * (Math.PI - rawAngle);
       }
 
-      setAhead(sign * vector.abs());
+      setAhead(sign * 2.0 * topSpeed);
       setTurnRightRadians(turnAngle);
     }
   }

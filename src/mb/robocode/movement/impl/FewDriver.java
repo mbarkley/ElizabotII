@@ -84,7 +84,7 @@ public class FewDriver implements MovementDriver {
           * (Math.pow(Math.max(0.0, dist - rawVector.abs()) / dist, 1.5)
           + Math.sin(Math.pow(2 * Math.PI * rawVector.abs() / dist, 2.0)));
 
-      vector = vector.normalize().scale(Rules.MAX_VELOCITY * 2.0);
+      vector = vector.normalize().scale(Rules.MAX_VELOCITY);
 
       if (!isAwayFromEdge(curPos.add(vector.rotate(sign * angle)))) {
         // Maybe we can try turning in the other direction...
@@ -94,6 +94,8 @@ public class FewDriver implements MovementDriver {
       if (isAwayFromEdge(curPos.add(vector.rotate(sign * angle)))) {
         return vector.rotate(sign * angle);
       } else {
+        final double wallDistanceRatio = getDistanceToClosestWall(curPos)
+            / buffer;
         /*
          * In this case we're really close to a corner. The edgeCoefficient
          * causes us to sharply straighten course towards our opponent (which
@@ -101,7 +103,7 @@ public class FewDriver implements MovementDriver {
          * not cause jerky boundary behaviour.
          */
         final double edgeCoefficient = Math.pow(
-            getDistanceToClosestWall(curPos) / buffer, 10.0);
+            wallDistanceRatio, 10.0);
         return vector.rotate(sign * angle * edgeCoefficient);
       }
     } else {

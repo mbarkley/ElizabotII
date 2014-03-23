@@ -7,6 +7,7 @@ import mb.robocode.vector.Target;
 import mb.robocode.vector.Vector;
 import robocode.HitByBulletEvent;
 import robocode.HitRobotEvent;
+import robocode.Rules;
 
 public class ManyDriver implements MovementDriver {
 
@@ -35,7 +36,7 @@ public class ManyDriver implements MovementDriver {
       destination = getDifferentRandomCorner(destination);
     }
 
-    return destination.minus(curPos);
+    return destination.minus(curPos).normalize().scale(Rules.MAX_VELOCITY);
   }
 
   @Override
