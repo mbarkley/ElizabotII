@@ -102,9 +102,9 @@ public class FewDriver implements MovementDriver {
          * will necessarily not be towards a wall) but in a smooth way that does
          * not cause jerky boundary behaviour.
          */
-        final double edgeCoefficient = Math.pow(
-            wallDistanceRatio, 10.0);
-        return vector.rotate(sign * angle * edgeCoefficient);
+        final double edgeCoefficient = Math.pow(wallDistanceRatio, 4.0);
+        return vector.rotate(sign * angle * edgeCoefficient).scale(
+            Math.sqrt(wallDistanceRatio));
       }
     } else {
       return new Vector(0, 0);
