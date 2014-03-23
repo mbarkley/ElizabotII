@@ -15,6 +15,9 @@ public class FewDriver implements MovementDriver {
   private double sign = 1.0;
   private final Vector battleFieldBound;
 
+  private final Vector restrictedTopRight;
+  private final Vector restrictedBottomLeft;
+
   private final MovementEstimator movementEstimator;
 
   public FewDriver(final double dist, final Vector battleFieldBound,
@@ -24,15 +27,32 @@ public class FewDriver implements MovementDriver {
     this.battleFieldBound = battleFieldBound;
     this.buffer = 1.5 * Math.sqrt(robotBound.y * robotBound.y + robotBound.x
         * robotBound.x);
+    restrictedTopRight = new Vector(battleFieldBound.x
+        - buffer, battleFieldBound.y - buffer);
+    restrictedBottomLeft = new Vector(buffer, buffer);
   }
 
   private boolean isAwayFromEdge(final Vector pos) {
-    final Vector restrictedTopRight = new Vector(battleFieldBound.x
-        - buffer, battleFieldBound.y - buffer);
-    final Vector restrictedBottomLeft = new Vector(buffer, buffer);
-
     return pos.isBoundBy(restrictedTopRight)
         && restrictedBottomLeft.isBoundBy(pos);
+  }
+
+  private double getDistanceToClosestWall(final Vector pos) {
+    final Vector[] walls = new Vector[] {
+        new Vector(pos.x, 0.0),
+        new Vector(pos.x, battleFieldBound.y),
+        new Vector(0.0, pos.y),
+        new Vector(battleFieldBound.x, pos.y)
+    };
+
+    Vector closestVector = walls[0];
+    for (int i = 1; i < walls.length; i++) {
+      if (walls[i].minus(pos).abs() < closestVector.minus(pos).abs()) {
+        closestVector = walls[i];
+      }
+    }
+
+    return closestVector.minus(pos).abs();
   }
 
   @Override
@@ -64,13 +84,7 @@ public class FewDriver implements MovementDriver {
           * (Math.pow(Math.max(0.0, dist - rawVector.abs()) / dist, 1.5)
           + Math.sin(Math.pow(2 * Math.PI * rawVector.abs() / dist, 2.0)));
 
-      if (!isAwayFromEdge(curPos)) {
-        /*
-         * Scale the movement vector if we are close to the edge to accurately
-         * assess whether we are in danger of running into a wall.
-         */
-        vector = vector.normalize().scale(buffer);
-      }
+      vector = vector.normalize().scale(Rules.MAX_VELOCITY * 2.0);
 
       if (!isAwayFromEdge(curPos.add(vector.rotate(sign * angle)))) {
         // Maybe we can try turning in the other direction...
@@ -81,10 +95,14 @@ public class FewDriver implements MovementDriver {
         return vector.rotate(sign * angle);
       } else {
         /*
-         * If we're really close to the edge, just follow our opponent (since he
-         * may never be passed the edge of the wall).
+         * In this case we're really close to a corner. The edgeCoefficient
+         * causes us to sharply straighten course towards our opponent (which
+         * will necessarily not be towards a wall) but in a smooth way that does
+         * not cause jerky boundary behaviour.
          */
-        return vector;
+        final double edgeCoefficient = Math.pow(
+            getDistanceToClosestWall(curPos) / buffer, 10.0);
+        return vector.rotate(sign * angle * edgeCoefficient);
       }
     } else {
       return new Vector(0, 0);
