@@ -14,6 +14,8 @@ public class ManyDriver implements MovementDriver {
   private final Vector[] corners;
   private final Random rand = new Random();
   private Vector destination;
+  private int cooldown = 0;
+  private static final int MAX_COOLDOWN = 10;
   private static final double DESTINATION_DELTA = 1.0;
 
   public ManyDriver(final Vector robotBound, final Vector battleFieldBound) {
@@ -31,6 +33,8 @@ public class ManyDriver implements MovementDriver {
   @Override
   public Vector movement(final Vector curPos, final Target curTarget,
       final long time) {
+    cooldown = Math.max(cooldown - 1, 0);
+
     if (destination == null
         || destination.minus(curPos).abs() < DESTINATION_DELTA) {
       destination = getDifferentRandomCorner(destination);
@@ -38,10 +42,17 @@ public class ManyDriver implements MovementDriver {
 
     return destination.minus(curPos).normalize().scale(Rules.MAX_VELOCITY);
   }
+  
+  private void maybeChangeDestination() {
+    if (cooldown == 0) {
+      destination = getDifferentRandomCorner(destination);
+      cooldown = MAX_COOLDOWN;
+    }
+  }
 
   @Override
   public void onHitRobot(final HitRobotEvent event) {
-    destination = getDifferentRandomCorner(destination);
+    maybeChangeDestination();
   }
 
   private Vector getDifferentRandomCorner(final Vector corner) {
@@ -64,7 +75,7 @@ public class ManyDriver implements MovementDriver {
   public void onHitByBullet(final HitByBulletEvent event) {
     final double absBearing = Math.abs(event.getBearingRadians());
     if (absBearing < Math.PI / 6.0 || absBearing > Math.PI - Math.PI / 6.0) {
-      destination = getDifferentRandomCorner(destination);
+      maybeChangeDestination();
     }
   }
 

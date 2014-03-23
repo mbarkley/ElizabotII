@@ -28,6 +28,7 @@ public class ElizabotII extends AdvancedRobot {
   private GunTargeter gunTargeter;
   private MovementDriver driver;
   private static final double AIM_DELTA = 0.001;
+  private static final int FEW = 1;
 
   private Vector boardTopRight;
 
@@ -43,7 +44,7 @@ public class ElizabotII extends AdvancedRobot {
     setAdjustRadarForRobotTurn(true);
     boardTopRight = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
     movementEstimator = new AccelerationMovementEstimator();
-    if (getOthers() > 1) {
+    if (getOthers() > FEW) {
       gunTargeter = getManyTargeter();
       driver = getManyDriver();
     } else {
@@ -275,7 +276,7 @@ public class ElizabotII extends AdvancedRobot {
       curTarget = null;
     }
 
-    if (getOthers() < 2) {
+    if (getOthers() <= FEW) {
       gunTargeter = getFewTargeter();
       driver = getFewDriver();
     }
