@@ -12,9 +12,10 @@ public class ManyDriver implements MovementDriver {
   private final Vector[] corners;
   private final Random rand = new Random();
   private Vector destination;
+  private static final double DESTINATION_DETLA = 0.1;
 
   public ManyDriver(final Vector robotBound, final Vector battleFieldBound) {
-    final double margin = 1.1 * Math.sqrt(robotBound.x * robotBound.x
+    final double margin = 1.5 * Math.sqrt(robotBound.x * robotBound.x
         + robotBound.y * robotBound.y);
     corners = new Vector[] {
         new Vector(margin, margin),
@@ -28,7 +29,8 @@ public class ManyDriver implements MovementDriver {
   @Override
   public Vector movement(final Vector curPos, final Target curTarget,
       final long time) {
-    if (destination == null || destination.minus(curPos).abs() < 0.1) {
+    if (destination == null
+        || destination.minus(curPos).abs() < DESTINATION_DETLA) {
       destination = getDifferentRandomCorner(destination);
     }
 

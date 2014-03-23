@@ -44,22 +44,20 @@ public class ElizabotII extends AdvancedRobot {
     boardTopRight = new Vector(getBattleFieldWidth(), getBattleFieldHeight());
     movementEstimator = new AccelerationMovementEstimator();
     if (getOthers() > 1) {
-      gunTargeter = new FirstMatchTargeter(new IntegerIterable(0, DEPTH + 1),
-          boardTopRight);
+      gunTargeter = getManyTargeter();
       driver = getManyDriver();
     } else {
-      gunTargeter = new FirstMatchTargeter(new IntegerIterable(DEPTH, -1, -1),
-          boardTopRight);
+      gunTargeter = getFewTargeter();
       driver = getFewDriver();
     }
   }
 
-  public ManyDriver getManyDriver() {
+  private ManyDriver getManyDriver() {
     return new ManyDriver(new Vector(getWidth(), getHeight()), new Vector(
         getBattleFieldWidth(), getBattleFieldHeight()));
   }
 
-  public FewDriver getFewDriver() {
+  private FewDriver getFewDriver() {
     return new FewDriver(
         Math
             .sqrt(getBattleFieldHeight()
@@ -68,6 +66,16 @@ public class ElizabotII extends AdvancedRobot {
         new Vector(getBattleFieldWidth(), getBattleFieldHeight()),
         new Vector(getWidth(), getHeight()),
         movementEstimator);
+  }
+  
+  private GunTargeter getManyTargeter() {
+    return new FirstMatchTargeter(new IntegerIterable(0, DEPTH + 1),
+          boardTopRight);
+  }
+  
+  private GunTargeter getFewTargeter() {
+    return new FirstMatchTargeter(new IntegerIterable(DEPTH, -1, -1),
+          boardTopRight);
   }
 
   @Override
@@ -255,8 +263,7 @@ public class ElizabotII extends AdvancedRobot {
     }
 
     if (getOthers() < 2) {
-      gunTargeter = new FirstMatchTargeter(new IntegerIterable(DEPTH, -1, -1),
-          boardTopRight);
+      gunTargeter = getFewTargeter();
       driver = getFewDriver();
     }
   }
