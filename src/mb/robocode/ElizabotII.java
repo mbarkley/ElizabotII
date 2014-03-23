@@ -55,7 +55,7 @@ public class ElizabotII extends AdvancedRobot {
   }
 
   public ManyDriver getManyDriver() {
-    return new ManyDriver(new Vector(getX(), getY()), new Vector(
+    return new ManyDriver(new Vector(getWidth(), getHeight()), new Vector(
         getBattleFieldWidth(), getBattleFieldHeight()));
   }
 
