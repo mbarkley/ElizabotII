@@ -26,7 +26,6 @@ public class ElizabotII extends AdvancedRobot {
   private MovementEstimator movementEstimator;
   private GunTargeter gunTargeter;
   private MovementDriver driver;
-  private static final int DEPTH = 100;
   private static final double AIM_DELTA = 0.001;
 
   private Vector boardTopRight;
@@ -37,7 +36,7 @@ public class ElizabotII extends AdvancedRobot {
   }
 
   private void init() {
-    setColors(Color.MAGENTA, Color.MAGENTA, Color.YELLOW, Color.BLUE, null);
+    setColors(Color.MAGENTA, Color.MAGENTA, Color.YELLOW, Color.PINK, null);
     setAdjustGunForRobotTurn(true);
     setAdjustRadarForGunTurn(true);
     setAdjustRadarForRobotTurn(true);
@@ -69,11 +68,13 @@ public class ElizabotII extends AdvancedRobot {
   }
   
   private GunTargeter getManyTargeter() {
-    return new FirstMatchTargeter(new IntegerIterable(0, DEPTH + 1),
+    final int DEPTH = 50;
+    return new FirstMatchTargeter(new IntegerIterable(DEPTH, -1, -1),
           boardTopRight);
   }
   
   private GunTargeter getFewTargeter() {
+    final int DEPTH = 100;
     return new FirstMatchTargeter(new IntegerIterable(DEPTH, -1, -1),
           boardTopRight);
   }
@@ -184,7 +185,7 @@ public class ElizabotII extends AdvancedRobot {
     if (curTarget != null) {
       g.setColor(Color.YELLOW);
       final long time = getTime();
-      for (int turns = 0; turns <= DEPTH; turns++) {
+      for (int turns = 0; turns <= 100; turns++) {
         final Vector pos = movementEstimator.estimatePosition(curTarget,
             (int) (turns + (time - curTarget.time)));
         fillSquareAt(pos, 4, g);
