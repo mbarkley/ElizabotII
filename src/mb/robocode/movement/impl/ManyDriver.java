@@ -42,7 +42,7 @@ public class ManyDriver implements MovementDriver {
 
     return destination.minus(curPos).normalize().scale(Rules.MAX_VELOCITY);
   }
-  
+
   private void maybeChangeDestination() {
     if (cooldown == 0) {
       destination = getDifferentRandomCorner(destination);
@@ -73,10 +73,7 @@ public class ManyDriver implements MovementDriver {
 
   @Override
   public void onHitByBullet(final HitByBulletEvent event) {
-    final double absBearing = Math.abs(event.getBearingRadians());
-    if (absBearing < Math.PI / 6.0 || absBearing > Math.PI - Math.PI / 6.0) {
-      maybeChangeDestination();
-    }
+    maybeChangeDestination();
   }
 
 }

@@ -90,7 +90,7 @@ public class ElizabotII extends AdvancedRobot {
         curTarget = null;
       }
 
-      if (curTarget == null) {
+      if (curTarget == null || getOthers() > FEW) {
         setTurnRadarRightRadians(Double.POSITIVE_INFINITY);
       } else {
         final Vector targetPos = movementEstimator.estimatePosition(curTarget,
