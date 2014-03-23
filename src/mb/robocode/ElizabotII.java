@@ -67,17 +67,17 @@ public class ElizabotII extends AdvancedRobot {
         new Vector(getWidth(), getHeight()),
         movementEstimator);
   }
-  
+
   private GunTargeter getManyTargeter() {
     final int DEPTH = 50;
     return new FirstMatchTargeter(new IntegerIterable(DEPTH, -1, -1),
-          boardTopRight);
+        boardTopRight);
   }
-  
+
   private GunTargeter getFewTargeter() {
     final int DEPTH = 100;
     return new FirstMatchTargeter(new IntegerIterable(DEPTH, -1, -1),
-          boardTopRight);
+        boardTopRight);
   }
 
   @Override
@@ -150,7 +150,9 @@ public class ElizabotII extends AdvancedRobot {
       result = aimVector.abs();
     } else {
       result = 0.0;
-      aimVector = target.pos.minus(new Vector(getX(), getY()));
+      aimVector = movementEstimator.estimatePosition(target,
+          (int) (getTime() - target.time + 1))
+          .minus(new Vector(getX(), getY()));
     }
 
     setTurnGunRightRadians(getRotationAngle(gunVector, aimVector));
@@ -257,7 +259,7 @@ public class ElizabotII extends AdvancedRobot {
           new Vector(getX(), getY())), new Vector(0, 0), event.getTime());
     }
   }
-  
+
   @Override
   public void onHitByBullet(final HitByBulletEvent event) {
     driver.onHitByBullet(event);
