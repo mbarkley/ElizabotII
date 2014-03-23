@@ -5,6 +5,7 @@ import java.util.Random;
 import mb.robocode.movement.MovementDriver;
 import mb.robocode.vector.Target;
 import mb.robocode.vector.Vector;
+import robocode.HitByBulletEvent;
 import robocode.HitRobotEvent;
 
 public class ManyDriver implements MovementDriver {
@@ -55,6 +56,14 @@ public class ManyDriver implements MovementDriver {
           % corners.length];
     } else {
       return corners[rand.nextInt(corners.length)];
+    }
+  }
+
+  @Override
+  public void onHitByBullet(final HitByBulletEvent event) {
+    final double absBearing = Math.abs(event.getBearingRadians());
+    if (absBearing < Math.PI / 6.0 || absBearing > Math.PI - Math.PI / 6.0) {
+      destination = getDifferentRandomCorner(destination);
     }
   }
 

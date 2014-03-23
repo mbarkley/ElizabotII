@@ -15,6 +15,7 @@ import mb.robocode.movement.impl.ManyDriver;
 import mb.robocode.vector.Target;
 import mb.robocode.vector.Vector;
 import robocode.AdvancedRobot;
+import robocode.HitByBulletEvent;
 import robocode.HitRobotEvent;
 import robocode.RobotDeathEvent;
 import robocode.Rules;
@@ -255,6 +256,11 @@ public class ElizabotII extends AdvancedRobot {
           getHeadingRadians() + event.getBearingRadians(), getHeight()).add(
           new Vector(getX(), getY())), new Vector(0, 0), event.getTime());
     }
+  }
+  
+  @Override
+  public void onHitByBullet(final HitByBulletEvent event) {
+    driver.onHitByBullet(event);
   }
 
   @Override

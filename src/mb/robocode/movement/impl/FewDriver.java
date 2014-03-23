@@ -4,6 +4,7 @@ import mb.robocode.movement.MovementDriver;
 import mb.robocode.movement.MovementEstimator;
 import mb.robocode.vector.Target;
 import mb.robocode.vector.Vector;
+import robocode.HitByBulletEvent;
 import robocode.HitRobotEvent;
 import robocode.Rules;
 
@@ -69,6 +70,10 @@ public class FewDriver implements MovementDriver {
 
   @Override
   public void onHitRobot(final HitRobotEvent event) {
+  }
+
+  @Override
+  public void onHitByBullet(final HitByBulletEvent event) {
   }
 
 }
