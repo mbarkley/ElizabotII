@@ -2,14 +2,13 @@ package mb.robocode.movement.impl;
 
 import java.util.Random;
 
-import mb.robocode.movement.MovementDriver;
 import mb.robocode.vector.Target;
 import mb.robocode.vector.Vector;
 import robocode.HitByBulletEvent;
 import robocode.HitRobotEvent;
 import robocode.Rules;
 
-public class ManyDriver implements MovementDriver {
+public class ManyDriver extends BaseDriver {
 
   private final Vector[] corners;
   private final Random rand = new Random();
@@ -17,16 +16,16 @@ public class ManyDriver implements MovementDriver {
   private int cooldown = 0;
   private static final int MAX_COOLDOWN = 10;
   private static final double DESTINATION_DELTA = 1.0;
+  private static final double EVASION_PERIOD = 40;
 
   public ManyDriver(final Vector robotBound, final Vector battleFieldBound) {
-    final double margin = 1.5 * Math.sqrt(robotBound.x * robotBound.x
-        + robotBound.y * robotBound.y);
+    super(battleFieldBound, robotBound);
     corners = new Vector[] {
-        new Vector(margin, margin),
-        new Vector(margin, battleFieldBound.y - margin),
-        new Vector(battleFieldBound.x - margin, margin),
-        new Vector(battleFieldBound.x - margin, battleFieldBound.y
-            - margin)
+        new Vector(buffer, buffer),
+        new Vector(buffer, battleFieldBound.y - buffer),
+        new Vector(battleFieldBound.x - buffer, buffer),
+        new Vector(battleFieldBound.x - buffer, battleFieldBound.y
+            - buffer)
     };
   }
 
@@ -40,7 +39,13 @@ public class ManyDriver implements MovementDriver {
       destination = getDifferentRandomCorner(destination);
     }
 
-    return destination.minus(curPos).normalize().scale(Rules.MAX_VELOCITY);
+    return destination
+        .minus(curPos)
+        .rotate(
+            Math.min(1.0, Math.pow(
+                getDistanceToClosestWall(curPos) / buffer, 4.0))
+            * Math.PI / 3.0 * Math.sin(2.0 * Math.PI / EVASION_PERIOD * time))
+        .normalize().scale(Rules.MAX_VELOCITY);
   }
 
   private void maybeChangeDestination() {

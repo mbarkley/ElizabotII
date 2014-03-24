@@ -1,6 +1,5 @@
 package mb.robocode.movement.impl;
 
-import mb.robocode.movement.MovementDriver;
 import mb.robocode.movement.MovementEstimator;
 import mb.robocode.vector.Target;
 import mb.robocode.vector.Vector;
@@ -8,51 +7,18 @@ import robocode.HitByBulletEvent;
 import robocode.HitRobotEvent;
 import robocode.Rules;
 
-public class FewDriver implements MovementDriver {
+public class FewDriver extends BaseDriver {
 
   private final double dist;
-  private final double buffer;
   private double sign = 1.0;
-  private final Vector battleFieldBound;
-
-  private final Vector restrictedTopRight;
-  private final Vector restrictedBottomLeft;
 
   private final MovementEstimator movementEstimator;
 
   public FewDriver(final double dist, final Vector battleFieldBound,
       final Vector robotBound, final MovementEstimator movementEstimator) {
+    super(battleFieldBound, robotBound);
     this.dist = dist;
     this.movementEstimator = movementEstimator;
-    this.battleFieldBound = battleFieldBound;
-    this.buffer = 1.5 * Math.sqrt(robotBound.y * robotBound.y + robotBound.x
-        * robotBound.x);
-    restrictedTopRight = new Vector(battleFieldBound.x
-        - buffer, battleFieldBound.y - buffer);
-    restrictedBottomLeft = new Vector(buffer, buffer);
-  }
-
-  private boolean isAwayFromEdge(final Vector pos) {
-    return pos.isBoundBy(restrictedTopRight)
-        && restrictedBottomLeft.isBoundBy(pos);
-  }
-
-  private double getDistanceToClosestWall(final Vector pos) {
-    final Vector[] walls = new Vector[] {
-        new Vector(pos.x, 0.0),
-        new Vector(pos.x, battleFieldBound.y),
-        new Vector(0.0, pos.y),
-        new Vector(battleFieldBound.x, pos.y)
-    };
-
-    Vector closestVector = walls[0];
-    for (int i = 1; i < walls.length; i++) {
-      if (walls[i].minus(pos).abs() < closestVector.minus(pos).abs()) {
-        closestVector = walls[i];
-      }
-    }
-
-    return closestVector.minus(pos).abs();
   }
 
   @Override
