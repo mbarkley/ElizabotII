@@ -10,7 +10,6 @@ import robocode.Rules;
 public class FewDriver extends BaseDriver {
 
   private final double dist;
-  private double sign = 1.0;
 
   private final MovementEstimator movementEstimator;
 
@@ -52,13 +51,8 @@ public class FewDriver extends BaseDriver {
 
       vector = vector.normalize().scale(Rules.MAX_VELOCITY);
 
-      if (!isAwayFromEdge(curPos.add(vector.rotate(sign * angle)))) {
-        // Maybe we can try turning in the other direction...
-        sign = -1.0;
-      }
-
-      if (isAwayFromEdge(curPos.add(vector.rotate(sign * angle)))) {
-        return vector.rotate(sign * angle);
+      if (isAwayFromEdge(curPos.add(vector.rotate(angle)))) {
+        return vector.rotate(angle);
       } else {
         final double wallDistanceRatio = getDistanceToClosestWall(curPos)
             / buffer;
@@ -69,12 +63,33 @@ public class FewDriver extends BaseDriver {
          * not cause jerky boundary behaviour.
          */
         final double edgeCoefficient = Math.pow(wallDistanceRatio, 4.0);
-        return vector.rotate(sign * angle * edgeCoefficient).scale(
-            Math.sqrt(wallDistanceRatio));
+        return vector.rotate(angle * edgeCoefficient)
+            .add(getNormalFromNearestWall(curPos)
+                .normalize().scale(1.0 / edgeCoefficient))
+                .normalize().scale(Rules.MAX_VELOCITY);
       }
     } else {
       return new Vector(0, 0);
     }
+  }
+
+  private Vector getNormalFromNearestWall(final Vector pos) {
+    final Vector[] nearestWallPoints = new Vector[] {
+        new Vector(pos.x, 0.0),
+        new Vector(pos.x, battleFieldBound.y),
+        new Vector(0.0, pos.y),
+        new Vector(battleFieldBound.x, pos.y)
+    };
+    
+    Vector smallestFromWall = pos.minus(nearestWallPoints[0]);
+    for (int i = 1; i < nearestWallPoints.length; i++) {
+      final Vector fromWall = pos.minus(nearestWallPoints[i]);
+      if (smallestFromWall.abs() > fromWall.abs()) {
+        smallestFromWall = fromWall;
+      }
+    }
+
+    return smallestFromWall;
   }
 
   @Override
