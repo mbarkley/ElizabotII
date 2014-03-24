@@ -10,6 +10,7 @@ import robocode.Rules;
 public class FewDriver extends BaseDriver {
 
   private final double dist;
+  private double sign = 1.0;
 
   private final MovementEstimator movementEstimator;
 
@@ -18,11 +19,14 @@ public class FewDriver extends BaseDriver {
     super(battleFieldBound, robotBound);
     this.dist = dist;
     this.movementEstimator = movementEstimator;
+    setMaxCooldown(15);
   }
 
   @Override
   public Vector movement(final Vector curPos, final Target curTarget,
       final long time) {
+    decrementCooldown();
+
     if (curTarget != null) {
       final Vector pos = movementEstimator.estimatePosition(curTarget,
           (int) (time - curTarget.time));
@@ -45,9 +49,9 @@ public class FewDriver extends BaseDriver {
        * close range this term will approach zero and the first term will become
        * dominant.
        */
-      final double angle = Math.PI / 2.0
+      final double angle = sign * (Math.PI / 2.0
           * (Math.pow(Math.max(0.0, dist - rawVector.abs()) / dist, 1.5)
-          + Math.sin(Math.pow(2 * Math.PI * rawVector.abs() / dist, 2.0)));
+          + Math.sin(Math.pow(2 * Math.PI * rawVector.abs() / dist, 2.0))));
 
       vector = vector.normalize().scale(Rules.MAX_VELOCITY);
 
@@ -98,6 +102,10 @@ public class FewDriver extends BaseDriver {
 
   @Override
   public void onHitByBullet(final HitByBulletEvent event) {
+    if (!isCooldownZeroed()) {
+      sign *= -1.0;
+    }
+    resetCooldown();
   }
 
 }

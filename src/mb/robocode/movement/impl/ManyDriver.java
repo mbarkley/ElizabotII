@@ -13,8 +13,6 @@ public class ManyDriver extends BaseDriver {
   private final Vector[] corners;
   private final Random rand = new Random();
   private Vector destination;
-  private int cooldown = 0;
-  private static final int MAX_COOLDOWN = 10;
   private static final double DESTINATION_DELTA = 1.0;
   private static final double EVASION_PERIOD = 40;
 
@@ -32,7 +30,7 @@ public class ManyDriver extends BaseDriver {
   @Override
   public Vector movement(final Vector curPos, final Target curTarget,
       final long time) {
-    cooldown = Math.max(cooldown - 1, 0);
+    decrementCooldown();
 
     if (destination == null
         || destination.minus(curPos).abs() < DESTINATION_DELTA) {
@@ -49,9 +47,9 @@ public class ManyDriver extends BaseDriver {
   }
 
   private void maybeChangeDestination() {
-    if (cooldown == 0) {
+    if (isCooldownZeroed()) {
       destination = getDifferentRandomCorner(destination);
-      cooldown = MAX_COOLDOWN;
+      resetCooldown();
     }
   }
 

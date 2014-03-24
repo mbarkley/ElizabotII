@@ -3,11 +3,13 @@ package mb.robocode.movement.impl;
 import mb.robocode.movement.MovementDriver;
 import mb.robocode.vector.Vector;
 
-public abstract class BaseDriver implements MovementDriver {
+abstract class BaseDriver implements MovementDriver {
 
+  private int maxCooldown = 10;
   protected final double buffer;
   protected final Vector battleFieldBound;
   protected final Vector restrictedTopRight;
+  private int cooldown = 0;
   protected final Vector restrictedBottomLeft;
 
   protected BaseDriver(final Vector battleFieldBound, final Vector robotBound) {
@@ -40,6 +42,22 @@ public abstract class BaseDriver implements MovementDriver {
     }
 
     return closestVector.minus(pos).abs();
+  }
+  
+  protected void decrementCooldown() {
+    cooldown = Math.max(0, cooldown - 1);
+  }
+  
+  protected boolean isCooldownZeroed() {
+    return cooldown == 0;
+  }
+  
+  protected void resetCooldown() {
+    cooldown = maxCooldown;
+  }
+  
+  protected void setMaxCooldown(final int newMaxCooldown) {
+    maxCooldown = newMaxCooldown;
   }
 
 }
