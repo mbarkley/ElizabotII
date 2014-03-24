@@ -13,7 +13,7 @@ public class ManyDriver extends BaseDriver {
   private final Vector[] corners;
   private final Random rand = new Random();
   private Vector destination;
-  private static final double DESTINATION_DELTA = 1.0;
+  private static final double DESTINATION_DELTA = Rules.MAX_VELOCITY;
   private static final double EVASION_PERIOD = 40;
 
   public ManyDriver(final Vector robotBound, final Vector battleFieldBound) {
