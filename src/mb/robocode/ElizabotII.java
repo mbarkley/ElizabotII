@@ -86,39 +86,65 @@ public class ElizabotII extends AdvancedRobot {
     init();
 
     while (true) {
-      if (curTarget != null && curTarget.isStale(getTime())) {
-        curTarget = null;
-      }
-
-      if (curTarget == null || getOthers() > FEW) {
-        setTurnRadarRightRadians(Double.POSITIVE_INFINITY);
-      } else {
-        final Vector targetPos = movementEstimator.estimatePosition(curTarget,
-            (int) (getTime() - curTarget.time));
-        final Vector relPos = targetPos.minus(new Vector(getX(), getY()));
-        final Vector radarVector = Vector.polarToComponent(
-            getRadarHeadingRadians(), 1.0);
-
-        setTurnRadarRightRadians(getRotationAngle(radarVector, relPos));
-      }
-
-      if (curTarget != null) {
-        final double firePower = aimAtTarget(curTarget);
-        if (isAbleToFire(firePower)) {
-          setFire(firePower);
-        }
-      }
-
-      setDrive(driver
-          .movement(new Vector(getX(), getY()), curTarget, getTime()));
-
-      execute();
+      executeGameLoop();
     }
+  }
+
+  private void executeGameLoop() {
+    clearCurrentTargetIfStale();
+
+    directRadar();
+    directGun();
+    directMovement();
+
+    execute();
   }
 
   private boolean isAbleToFire(final double firePower) {
     return firePower != 0.0 && getGunTurnRemainingRadians() < AIM_DELTA
         && getGunHeat() == 0.0;
+  }
+
+  private void clearCurrentTargetIfStale() {
+    if (curTarget != null && curTarget.isStale(getTime())) {
+      curTarget = null;
+    }
+  }
+
+  private void directMovement() {
+    setDrive(driver
+        .movement(new Vector(getX(), getY()), curTarget, getTime()));
+  }
+
+  private void directGun() {
+    if (curTarget != null) {
+      final double firePower = aimAtTarget(curTarget);
+      if (isAbleToFire(firePower)) {
+        setFire(firePower);
+      }
+    }
+  }
+
+  private void directRadar() {
+    if (curTarget == null || getOthers() > FEW) {
+      rotateRadarClockwise();
+    } else {
+      followTargetWithRadar(curTarget);
+    }
+  }
+
+  private void rotateRadarClockwise() {
+    setTurnRadarRightRadians(Double.POSITIVE_INFINITY);
+  }
+
+  private void followTargetWithRadar(final Target target) {
+    final Vector targetPos = movementEstimator.estimatePosition(target,
+        (int) (getTime() - target.time));
+    final Vector relPos = targetPos.minus(new Vector(getX(), getY()));
+    final Vector radarVector = Vector.polarToComponent(
+        getRadarHeadingRadians(), 1.0);
+
+    setTurnRadarRightRadians(getRotationAngle(radarVector, relPos));
   }
 
   private void setDrive(final Vector vector) {
