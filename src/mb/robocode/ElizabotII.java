@@ -104,8 +104,7 @@ public class ElizabotII extends AdvancedRobot {
 
       if (curTarget != null) {
         final double firePower = aimAtTarget(curTarget);
-        if (firePower != 0.0 && getGunTurnRemainingRadians() < AIM_DELTA
-            && getGunHeat() == 0.0) {
+        if (isAbleToFire(firePower)) {
           setFire(firePower);
         }
       }
@@ -115,6 +114,11 @@ public class ElizabotII extends AdvancedRobot {
 
       execute();
     }
+  }
+
+  private boolean isAbleToFire(final double firePower) {
+    return firePower != 0.0 && getGunTurnRemainingRadians() < AIM_DELTA
+        && getGunHeat() == 0.0;
   }
 
   private void setDrive(final Vector vector) {
