@@ -1,5 +1,6 @@
 package mb.robocode.gun.impl;
 
+import mb.robocode.gun.GunAim;
 import mb.robocode.gun.GunTargeter;
 import mb.robocode.movement.MovementEstimator;
 import mb.robocode.vector.Target;
@@ -11,8 +12,6 @@ public class FirstMatchTargeter implements GunTargeter {
   private final Iterable<Integer> turns;
   private final Vector boardBottomLeft = new Vector(0, 0);
   private final Vector boardTopRight;
-  // For debugging
-  private Vector _guessAimDebug;
 
   public FirstMatchTargeter(final Iterable<Integer> turns,
       final Vector battleFieldBound) {
@@ -21,7 +20,7 @@ public class FirstMatchTargeter implements GunTargeter {
   }
 
   @Override
-  public Vector getAimVector(final Target target, final Vector curPos,
+  public GunAim getAimVector(final Target target, final Vector curPos,
       final long time,
       final MovementEstimator movementEstimator) {
 
@@ -35,22 +34,14 @@ public class FirstMatchTargeter implements GunTargeter {
 
       if (bulletPower <= Rules.MAX_BULLET_POWER
           && bulletPower >= Rules.MIN_BULLET_POWER && isOnBoard(targetPos)) {
-        _guessAimDebug = targetPos;
-        return relPos.normalize().scale(bulletPower);
+        return new GunAim(relPos, bulletPower);
       }
     }
 
-    _guessAimDebug = null;
-    return new Vector(0, 0);
+    return new GunAim(new Vector(0, 0), 0);
   }
 
   private boolean isOnBoard(final Vector pos) {
     return pos.isBoundBy(boardTopRight) && boardBottomLeft.isBoundBy(pos);
   }
-
-  @Override
-  public Vector getLastAimVector() {
-    return _guessAimDebug;
-  }
-
 }

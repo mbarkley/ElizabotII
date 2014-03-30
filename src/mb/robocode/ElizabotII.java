@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 
+import mb.robocode.gun.GunAim;
 import mb.robocode.gun.GunTargeter;
 import mb.robocode.gun.impl.FirstMatchTargeter;
 import mb.robocode.iter.IntegerIterable;
@@ -178,13 +179,12 @@ public class ElizabotII extends AdvancedRobot {
     assert target != null;
     final Vector gunVector = Vector.polarToComponent(getGunHeadingRadians(),
         1.0);
-    Vector aimVector = guessAimVector(target);
-    final double result;
+    final GunAim gunAim = guessGunAim(target);
+    final Vector aimVector;
 
-    if (aimVector.abs() > 0) {
-      result = aimVector.abs();
+    if (gunAim.power > 0.0) {
+      aimVector = gunAim.aimVector;
     } else {
-      result = 0.0;
       aimVector = movementEstimator.estimatePosition(target,
           (int) (getTime() - target.time + 1))
           .minus(new Vector(getX(), getY()));
@@ -192,7 +192,7 @@ public class ElizabotII extends AdvancedRobot {
 
     setTurnGunRightRadians(getRotationAngle(gunVector, aimVector));
 
-    return result;
+    return gunAim.power;
   }
 
   private double getRotationAngle(final Vector deviceVector,
@@ -213,7 +213,7 @@ public class ElizabotII extends AdvancedRobot {
    * Get a relative vector from our position to the spot to aim. The maginitude
    * represents the bullet power.
    */
-  private Vector guessAimVector(final Target target) {
+  private GunAim guessGunAim(final Target target) {
     return gunTargeter.getAimVector(target, new Vector(getX(), getY()),
         getTime(), movementEstimator);
   }
@@ -229,8 +229,9 @@ public class ElizabotII extends AdvancedRobot {
         fillSquareAt(pos, 4, g);
       }
 
-      Vector aimAt = guessAimVector(curTarget);
-      final double power = aimAt.abs();
+      GunAim gunAim = guessGunAim(curTarget);
+      Vector aimAt = gunAim.aimVector;
+      final double power = gunAim.power;
       final double speed = Rules.getBulletSpeed(power);
       if (power > 0) {
         g.setColor(Color.RED);
@@ -245,9 +246,7 @@ public class ElizabotII extends AdvancedRobot {
           curPos = curPos.add(aimAt);
         }
 
-        if (gunTargeter.getLastAimVector() != null) {
-          fillSquareAt(gunTargeter.getLastAimVector(), 8, g);
-        }
+        fillSquareAt(gunAim.aimVector, 8, g);
       }
     }
   }
